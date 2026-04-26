@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "555858112764",
+    "project_id": "ningyou-ai",
+    "storage_bucket": "ningyou-ai.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:555858112764:android:8925d7a9b8f0deeabd6779",
+        "android_client_info": {
+          "package_name": "com.ningyou.ningyou"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "555858112764-j9rntmjfveh4189j1igt4itaht8t87ot.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ningyou.ningyou",
+            "certificate_hash": "3a9a9abe173240ec8358def30c8146259426181d"
+          }
+        },
+        {
+          "client_id": "555858112764-0djiqensneanng57grmrd0i8af684olj.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAwi58CaqpgCodWIP_4TnYIUa7JRLDCfWU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "555858112764-0djiqensneanng57grmrd0i8af684olj.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
