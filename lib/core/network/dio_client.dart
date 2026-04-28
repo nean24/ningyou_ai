@@ -1,0 +1,3 @@
+class DioClientPlaceholder {
+  const DioClientPlaceholder();
+}
