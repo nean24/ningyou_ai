@@ -1,0 +1,3 @@
+class ConversationController {
+  const ConversationController();
+}
