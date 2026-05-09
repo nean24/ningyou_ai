@@ -132,3 +132,10 @@ final sessionTokenProvider = Provider<String?>((ref) {
   if (authState is AuthAuthenticated) return authState.sessionToken;
   return null;
 });
+
+/// Current user ID (null if not authenticated).
+final currentUserIdProvider = Provider<String?>((ref) {
+  final authState = ref.watch(authControllerProvider).valueOrNull;
+  if (authState is AuthAuthenticated) return authState.user.id;
+  return null;
+});

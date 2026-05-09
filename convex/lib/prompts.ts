@@ -40,11 +40,15 @@ export function buildGeminiPrompt(args: {
     traitBlock,
     greetingBlock,
     "",
-    "Safety and behavior guardrails:",
-    "- Stay in character. Do not claim to be human.",
-    "- Be warm, concise, and emotionally careful.",
+    "CRITICAL RULES — follow these exactly:",
+    "- Reply ONLY as the character. Write the character's words directly.",
+    "- NEVER analyze the user's input, explain your reasoning, or list options before replying.",
+    "- NEVER write meta-commentary like 'User's input:', 'Character:', 'Option 1:', etc.",
+    "- NEVER show your thought process. Just speak as the character, immediately.",
+    "- Stay in character. Do not claim to be an AI or a language model.",
+    "- Keep responses concise and natural — as if in a real conversation.",
     "- Do not provide professional medical, legal, or financial advice.",
-    "- If the user asks for harmful content, refuse briefly and redirect.",
+    "- If the user asks for harmful content, refuse briefly in character and redirect.",
   ]
     .filter(Boolean)
     .join("\n");

@@ -269,6 +269,207 @@ http.route({
 });
 
 // ---------------------------------------------------------------------------
+// POST /conversations  — create a new conversation
+// ---------------------------------------------------------------------------
+http.route({
+  path: "/conversations",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const token = request.headers.get("Authorization")?.replace("Bearer ", "").trim();
+    if (!token) return json({ error: "Unauthorized" }, 401);
+
+    const user = await ctx.runQuery(internal.sessions.validate, { token });
+    if (!user) return json({ error: "Unauthorized" }, 401);
+
+    try {
+      const body = await request.json() as { characterId?: string };
+      if (!body.characterId) return json({ error: "characterId is required" }, 400);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const conversationId = await ctx.runMutation(api.conversations.create, {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        userId: user._id as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        characterId: body.characterId as any,
+      });
+
+      const conversation = await ctx.runQuery(api.conversations.get, {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        conversationId: conversationId as any,
+      });
+
+      return json({ conversationId, conversation }, 201);
+    } catch (error) {
+      console.error("[POST /conversations]", error);
+      return json({ error: "Internal server error" }, 500);
+    }
+  }),
+});
+
+// ---------------------------------------------------------------------------
+// POST /conversations/list  — list current user's conversations
+// ---------------------------------------------------------------------------
+http.route({
+  path: "/conversations/list",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const token = request.headers.get("Authorization")?.replace("Bearer ", "").trim();
+    if (!token) return json({ error: "Unauthorized" }, 401);
+
+    const user = await ctx.runQuery(internal.sessions.validate, { token });
+    if (!user) return json({ error: "Unauthorized" }, 401);
+
+    try {
+      const conversations = await ctx.runQuery(api.conversations.listByUser, {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        userId: user._id as any,
+      });
+      return json({ conversations });
+    } catch (error) {
+      console.error("[POST /conversations/list]", error);
+      return json({ error: "Internal server error" }, 500);
+    }
+  }),
+});
+
+// ---------------------------------------------------------------------------
+// POST /messages/list  { conversationId }
+// ---------------------------------------------------------------------------
+http.route({
+  path: "/messages/list",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const token = request.headers.get("Authorization")?.replace("Bearer ", "").trim();
+    if (!token) return json({ error: "Unauthorized" }, 401);
+
+    const user = await ctx.runQuery(internal.sessions.validate, { token });
+    if (!user) return json({ error: "Unauthorized" }, 401);
+
+    try {
+      const body = await request.json() as { conversationId?: string };
+      if (!body.conversationId) return json({ error: "conversationId is required" }, 400);
+
+      const messages = await ctx.runQuery(api.messages.listByConversation, {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        conversationId: body.conversationId as any,
+      });
+      return json({ messages });
+    } catch (error) {
+      console.error("[POST /messages/list]", error);
+      return json({ error: "Internal server error" }, 500);
+    }
+  }),
+});
+
+// ---------------------------------------------------------------------------
+// POST /messages/send  { conversationId, content }
+// Inserts the user message, calls AI, returns the assistant reply.
+// ---------------------------------------------------------------------------
+http.route({
+  path: "/messages/send",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const token = request.headers.get("Authorization")?.replace("Bearer ", "").trim();
+    if (!token) return json({ error: "Unauthorized" }, 401);
+
+    const user = await ctx.runQuery(internal.sessions.validate, { token });
+    if (!user) return json({ error: "Unauthorized" }, 401);
+
+    try {
+      const body = await request.json() as {
+        conversationId?: string;
+        content?: string;
+      };
+      if (!body.conversationId || !body.content) {
+        return json({ error: "conversationId and content are required" }, 400);
+      }
+      if (body.content.trim().length === 0) {
+        return json({ error: "content cannot be empty" }, 400);
+      }
+
+      // 1. Save the user message
+      const userMessageId = await ctx.runMutation(api.messages.sendUserMessage, {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        conversationId: body.conversationId as any,
+        content: body.content.trim(),
+      });
+
+      // 2. Generate assistant reply (calls Gemini)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const reply = await ctx.runAction(api.ai.generateAssistantReply, {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        conversationId: body.conversationId as any,
+      });
+
+      return json({
+        userMessageId,
+        assistantMessageId: reply.messageId,
+        assistantText: reply.text,
+        assistantModel: reply.model,
+      });
+    } catch (error) {
+      console.error("[POST /messages/send]", error);
+      return json({ error: "Failed to send message" }, 500);
+    }
+  }),
+});
+
+// ---------------------------------------------------------------------------
+// POST /characters/create  (auth required)
+// ---------------------------------------------------------------------------
+http.route({
+  path: "/characters/create",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const token = request.headers.get("Authorization")?.replace("Bearer ", "").trim();
+    if (!token) return json({ error: "Unauthorized" }, 401);
+
+    const user = await ctx.runQuery(internal.sessions.validate, { token });
+    if (!user) return json({ error: "Unauthorized" }, 401);
+
+    try {
+      const body = await request.json() as {
+        name?: string;
+        description?: string;
+        systemPrompt?: string;
+        greeting?: string;
+        traits?: string[];
+        visibility?: string;
+      };
+
+      if (!body.name?.trim() || !body.description?.trim() || !body.systemPrompt?.trim()) {
+        return json({ error: "name, description, and systemPrompt are required" }, 400);
+      }
+
+      const visibility = (["public", "private", "unlisted"].includes(body.visibility ?? ""))
+        ? body.visibility as "public" | "private" | "unlisted"
+        : "public";
+
+      const characterId = await ctx.runMutation(api.characters.create, {
+        name: body.name.trim(),
+        description: body.description.trim(),
+        systemPrompt: body.systemPrompt.trim(),
+        greeting: body.greeting?.trim() || undefined,
+        traits: (body.traits ?? []).filter(Boolean),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        creatorUserId: user._id as any,
+        visibility,
+      });
+
+      const character = await ctx.runQuery(api.characters.get, {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        characterId: characterId as any,
+      });
+
+      return json({ characterId, character }, 201);
+    } catch (error) {
+      console.error("[POST /characters/create]", error);
+      return json({ error: "Internal server error" }, 500);
+    }
+  }),
+});
+
+// ---------------------------------------------------------------------------
 // GET /characters  (public, no auth required)
 // ---------------------------------------------------------------------------
 http.route({

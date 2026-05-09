@@ -20,6 +20,7 @@ import type * as messages from "../messages.js";
 import type * as profile from "../profile.js";
 import type * as rateLimiter from "../rateLimiter.js";
 import type * as rateLimits from "../rateLimits.js";
+import type * as seed from "../seed.js";
 import type * as sessions from "../sessions.js";
 import type * as usageLogs from "../usageLogs.js";
 import type * as users from "../users.js";
@@ -43,6 +44,7 @@ declare const fullApi: ApiFromModules<{
   profile: typeof profile;
   rateLimiter: typeof rateLimiter;
   rateLimits: typeof rateLimits;
+  seed: typeof seed;
   sessions: typeof sessions;
   usageLogs: typeof usageLogs;
   users: typeof users;

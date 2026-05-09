@@ -1,6 +1,6 @@
 import type { GeminiContent } from "./prompts";
 
-export const defaultGeminiModel = "gemini-2.5-flash";
+export const defaultGeminiModel = "gemma-4-31b-it";
 
 export type GeminiGenerateArgs = {
   model?: string;
@@ -18,7 +18,7 @@ export type GeminiGenerateResult = {
 type GeminiResponse = {
   candidates?: Array<{
     content?: {
-      parts?: Array<{ text?: string }>;
+      parts?: Array<{ text?: string; thought?: boolean }>;
     };
   }>;
   usageMetadata?: {
@@ -54,9 +54,12 @@ export async function generateGeminiText(args: GeminiGenerateArgs) {
   }
 
   const data = (await response.json()) as GeminiResponse;
+
+  // Filter out thinking parts (thought: true) — only keep the actual response
   const text =
     data.candidates?.[0]?.content?.parts
-      ?.map((part) => part.text ?? "")
+      ?.filter((part) => !part.thought)
+      .map((part) => part.text ?? "")
       .join("")
       .trim() ?? "";
 

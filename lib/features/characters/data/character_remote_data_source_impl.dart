@@ -18,4 +18,24 @@ class CharacterRemoteDataSourceImpl implements CharacterRemoteDataSource {
     final res = await _client.post('/characters/get', body: {'id': id});
     return res['character'] as Map<String, dynamic>?;
   }
+
+  @override
+  Future<Map<String, dynamic>> create({
+    required String name,
+    required String description,
+    required String systemPrompt,
+    String? greeting,
+    List<String> traits = const [],
+    String visibility = 'public',
+  }) async {
+    final res = await _client.post('/characters/create', body: {
+      'name': name,
+      'description': description,
+      'systemPrompt': systemPrompt,
+      if (greeting != null && greeting.isNotEmpty) 'greeting': greeting,
+      'traits': traits,
+      'visibility': visibility,
+    });
+    return res['character'] as Map<String, dynamic>;
+  }
 }

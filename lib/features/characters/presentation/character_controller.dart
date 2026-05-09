@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/database_provider.dart';
 import '../../../shared/providers/convex_client_provider.dart';
+import '../../auth/presentation/auth_controller.dart';
 import '../data/character_local_data_source.dart';
 import '../data/character_remote_data_source_impl.dart';
 import '../data/character_repository.dart';
@@ -9,14 +10,16 @@ import '../data/character_repository_impl.dart';
 import '../domain/character.dart';
 
 // ---------------------------------------------------------------------------
-// Repository provider
+// Repository provider (authed client for create)
 // ---------------------------------------------------------------------------
 final characterRepositoryProvider = Provider<CharacterRepository>((ref) {
   final client = ref.watch(convexClientProvider);
+  final token = ref.watch(sessionTokenProvider);
+  final authed = token != null ? client.withToken(token) : client;
   final dao = ref.watch(charactersDaoProvider);
 
   return CharacterRepositoryImpl(
-    remote: CharacterRemoteDataSourceImpl(client: client),
+    remote: CharacterRemoteDataSourceImpl(client: authed),
     local: CharacterLocalDataSource(dao),
   );
 });
@@ -44,6 +47,32 @@ class CharacterListNotifier extends AsyncNotifier<List<Character>> {
       state = AsyncData(characters);
     } catch (e, st) {
       state = AsyncError(e, st);
+    }
+  }
+
+  Future<Character?> createCharacter({
+    required String name,
+    required String description,
+    required String systemPrompt,
+    String? greeting,
+    List<String> traits = const [],
+    String visibility = 'public',
+  }) async {
+    try {
+      final character = await ref.read(characterRepositoryProvider).createCharacter(
+            name: name,
+            description: description,
+            systemPrompt: systemPrompt,
+            greeting: greeting,
+            traits: traits,
+            visibility: visibility,
+          );
+      // Prepend to existing list
+      final current = state.valueOrNull ?? [];
+      state = AsyncData([character, ...current]);
+      return character;
+    } catch (e) {
+      return null;
     }
   }
 }

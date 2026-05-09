@@ -47,4 +47,26 @@ class CharacterRepositoryImpl implements CharacterRepository {
       await _local.cacheAll(remote);
     } catch (_) {}
   }
+
+  @override
+  Future<Character> createCharacter({
+    required String name,
+    required String description,
+    required String systemPrompt,
+    String? greeting,
+    List<String> traits = const [],
+    String visibility = 'public',
+  }) async {
+    final raw = await _remote.create(
+      name: name,
+      description: description,
+      systemPrompt: systemPrompt,
+      greeting: greeting,
+      traits: traits,
+      visibility: visibility,
+    );
+    final character = Character.fromRemote(raw);
+    await _local.cache(raw);
+    return character;
+  }
 }

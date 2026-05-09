@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/ningyou_colors.dart';
 import '../../../core/theme/ningyou_radius.dart';
@@ -8,12 +9,24 @@ import '../../../shared/widgets/ningyou/ningyou_avatar.dart';
 import '../../../shared/widgets/ningyou/ningyou_badge.dart';
 import '../../../shared/widgets/ningyou/ningyou_button.dart';
 import '../../../shared/widgets/ningyou/ningyou_icon_button.dart';
+import '../../../features/chat/presentation/chat_screen.dart';
+import '../../../features/conversations/presentation/conversation_controller.dart';
 import '../domain/character.dart';
 
-class CharacterDetailScreen extends StatelessWidget {
+class CharacterDetailScreen extends ConsumerStatefulWidget {
   const CharacterDetailScreen({required this.character, super.key});
 
   final Character character;
+
+  @override
+  ConsumerState<CharacterDetailScreen> createState() =>
+      _CharacterDetailScreenState();
+}
+
+class _CharacterDetailScreenState extends ConsumerState<CharacterDetailScreen> {
+  bool _isCreating = false;
+
+  Character get character => widget.character;
 
   @override
   Widget build(BuildContext context) {
@@ -115,10 +128,10 @@ class CharacterDetailScreen extends StatelessWidget {
                     ],
                     const SizedBox(height: NingyouSpacing.xxl),
                     NingyouButton.primary(
-                      label: 'Start chat',
+                      label: _isCreating ? 'Starting...' : 'Start chat',
                       icon: Icons.chat_bubble_outline_rounded,
                       size: NingyouButtonSize.lg,
-                      onPressed: () => _startChat(context),
+                      onPressed: _isCreating ? null : () => _startChat(context),
                     ),
                   ],
                 ),
@@ -130,11 +143,33 @@ class CharacterDetailScreen extends StatelessWidget {
     );
   }
 
-  void _startChat(BuildContext context) {
-    // TODO: implement once ChatScreen and ConversationController are built
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Chat coming soon!')),
-    );
+  Future<void> _startChat(BuildContext context) async {
+    setState(() => _isCreating = true);
+    try {
+      final conversation = await ref
+          .read(conversationListProvider.notifier)
+          .createConversation(character.id);
+
+      if (!context.mounted) return;
+
+      if (conversation != null) {
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => ChatScreen(
+              conversationId: conversation.id,
+              characterName: character.name,
+              characterAvatarUrl: character.avatarUrl,
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not start chat. Try again.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isCreating = false);
+    }
   }
 }
 

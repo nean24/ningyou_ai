@@ -6,9 +6,11 @@ import '../../../core/theme/ningyou_radius.dart';
 import '../../../core/theme/ningyou_spacing.dart';
 import '../../../core/theme/ningyou_text_styles.dart';
 import '../../../shared/widgets/ningyou/ningyou_avatar.dart';
+import '../../../shared/widgets/ningyou/ningyou_icon_button.dart';
 import '../../../shared/widgets/ningyou/ningyou_persona_card.dart';
 import '../domain/character.dart';
 import 'character_controller.dart';
+import 'character_create_screen.dart';
 import 'character_detail_screen.dart';
 
 class CharacterListScreen extends ConsumerStatefulWidget {
@@ -40,7 +42,7 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _Header(palette: palette),
+            _Header(palette: palette, onCreateTap: _openCreate),
             _SearchBar(
               controller: _searchController,
               palette: palette,
@@ -119,14 +121,24 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
       ),
     );
   }
+
+  Future<void> _openCreate() async {
+    await Navigator.of(context).push<Character>(
+      MaterialPageRoute<Character>(
+        builder: (_) => const CharacterCreateScreen(),
+        fullscreenDialog: true,
+      ),
+    );
+  }
 }
 
 // ── Header ─────────────────────────────────────────────────────────────────
 
 class _Header extends StatelessWidget {
-  const _Header({required this.palette});
+  const _Header({required this.palette, required this.onCreateTap});
 
   final NingyouPalette palette;
+  final VoidCallback onCreateTap;
 
   @override
   Widget build(BuildContext context) {
@@ -134,23 +146,34 @@ class _Header extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(
         NingyouSpacing.xl,
         NingyouSpacing.xl,
-        NingyouSpacing.xl,
+        NingyouSpacing.md,
         NingyouSpacing.sm,
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Discover',
-            style: Theme.of(context)
-                .textTheme
-                .headlineSmall
-                ?.copyWith(color: palette.text),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Discover',
+                  style: Theme.of(context)
+                      .textTheme
+                      .headlineSmall
+                      ?.copyWith(color: palette.text),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Find your next conversation partner',
+                  style: NingyouTextStyles.monoLabel(palette.textSubtle),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            'Find your next conversation partner',
-            style: NingyouTextStyles.monoLabel(palette.textSubtle),
+          NingyouIconButton(
+            icon: Icons.add_rounded,
+            onPressed: onCreateTap,
           ),
         ],
       ),
