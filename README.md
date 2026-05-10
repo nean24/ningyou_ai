@@ -27,7 +27,7 @@ Ningyou lets users discover AI personas (characters), start conversations with t
 
 **Version:** 1.0.0+1  
 **Flutter SDK:** >=3.11.5  
-**Backend:** Convex (`fortunate-tapir-538.convex.cloud`)
+**Backend:** Convex
 
 ---
 
@@ -442,9 +442,7 @@ Animated skeleton shimmer for loading states.
 
 ## Backend (Convex)
 
-**Production URL:** `https://fortunate-tapir-538.convex.cloud`  
-**HTTP Actions URL:** `https://fortunate-tapir-538.convex.site`  
-**Project:** `fortunate-tapir-538` / Team: `le-sac`
+Configure your Convex URLs via `--dart-define` or environment variables (see [Getting Started](#getting-started)). Do not hardcode production URLs in source files.
 
 ### Database Tables
 
@@ -507,8 +505,8 @@ flutter run
 
 # Or with explicit environment overrides:
 flutter run \
-  --dart-define=CONVEX_URL=https://fortunate-tapir-538.convex.cloud \
-  --dart-define=CONVEX_SITE_URL=https://fortunate-tapir-538.convex.site \
+  --dart-define=CONVEX_URL=<your-convex-url> \
+  --dart-define=CONVEX_SITE_URL=<your-convex-site-url> \
   --dart-define=GOOGLE_CLIENT_ID=<your-google-client-id>
 ```
 
