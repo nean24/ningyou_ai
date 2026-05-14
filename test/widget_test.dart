@@ -87,6 +87,8 @@ void main() {
       ),
     );
 
+    expect(find.byIcon(Icons.mic_none_rounded), findsNothing);
+
     await tester.enterText(find.byType(TextField), 'Xin chào Linh');
     await tester.tap(find.byKey(const ValueKey('ningyou_composer_send')));
     await tester.pump();

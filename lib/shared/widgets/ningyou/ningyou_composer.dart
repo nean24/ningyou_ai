@@ -64,13 +64,6 @@ class _NingyouComposerState extends State<NingyouComposer> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                NingyouIconButton(
-                  icon: Icons.mic_none_rounded,
-                  tooltip: l10n?.t('common.voice') ?? 'Voice',
-                  size: 38,
-                  onPressed: () {},
-                ),
-                const SizedBox(width: NingyouSpacing.xs),
                 Expanded(
                   child: TextField(
                     controller: _controller,
