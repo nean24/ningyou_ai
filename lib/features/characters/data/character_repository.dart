@@ -1,6 +1,8 @@
 import '../domain/character.dart';
 
 abstract interface class CharacterRepository {
+  Future<String> getAvatarUploadUrl();
+  Future<List<Character>> listByCreator({bool forceRefresh = false});
   Future<List<Character>> listPublic({bool forceRefresh = false});
   Future<Character?> getById(String id, {bool forceRefresh = false});
   Future<Character> createCharacter({
@@ -10,5 +12,6 @@ abstract interface class CharacterRepository {
     String? greeting,
     List<String> traits,
     String visibility,
+    String? avatarStorageId,
   });
 }

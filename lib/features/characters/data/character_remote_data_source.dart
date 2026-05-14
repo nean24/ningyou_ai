@@ -1,4 +1,6 @@
 abstract interface class CharacterRemoteDataSource {
+  Future<String> getAvatarUploadUrl();
+  Future<List<Map<String, dynamic>>> listByCreator();
   Future<List<Map<String, dynamic>>> listPublic();
   Future<Map<String, dynamic>?> getById(String id);
   Future<Map<String, dynamic>> create({
@@ -8,5 +10,6 @@ abstract interface class CharacterRemoteDataSource {
     String? greeting,
     List<String> traits,
     String visibility,
+    String? avatarStorageId,
   });
 }

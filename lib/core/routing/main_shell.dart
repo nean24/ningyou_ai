@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/l10n/app_localizations.dart';
 import '../../core/theme/ningyou_colors.dart';
+import '../../core/theme/ningyou_radius.dart';
 import '../../core/theme/ningyou_spacing.dart';
 import '../../core/theme/ningyou_text_styles.dart';
 import '../../features/characters/presentation/character_list_screen.dart';
@@ -45,17 +47,17 @@ class _TabBar extends StatelessWidget {
 
   static const _tabs = [
     _Tab(
-      label: 'Chats',
+      labelKey: 'nav.chats',
       icon: Icons.chat_bubble_outline_rounded,
       activeIcon: Icons.chat_bubble_rounded,
     ),
     _Tab(
-      label: 'Discover',
+      labelKey: 'nav.discover',
       icon: Icons.explore_outlined,
       activeIcon: Icons.explore_rounded,
     ),
     _Tab(
-      label: 'Profile',
+      labelKey: 'nav.profile',
       icon: Icons.person_outline_rounded,
       activeIcon: Icons.person_rounded,
     ),
@@ -64,6 +66,7 @@ class _TabBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = NingyouColors.of(context);
+    final l10n = context.l10n;
     final bottomPadding = MediaQuery.paddingOf(context).bottom;
 
     return DecoratedBox(
@@ -92,10 +95,12 @@ class _TabBar extends StatelessWidget {
                   decoration: active
                       ? BoxDecoration(
                           color: palette.backgroundMuted,
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(NingyouRadius.sm),
                         )
                       : null,
-                  padding: const EdgeInsets.symmetric(vertical: NingyouSpacing.xs),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: NingyouSpacing.xs,
+                  ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -106,7 +111,7 @@ class _TabBar extends StatelessWidget {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        tab.label,
+                        l10n.t(tab.labelKey),
                         style: NingyouTextStyles.monoLabel(
                           active ? palette.text : palette.textSubtle,
                         ).copyWith(fontSize: 10),
@@ -125,12 +130,12 @@ class _TabBar extends StatelessWidget {
 
 class _Tab {
   const _Tab({
-    required this.label,
+    required this.labelKey,
     required this.icon,
     required this.activeIcon,
   });
 
-  final String label;
+  final String labelKey;
   final IconData icon;
   final IconData activeIcon;
 }

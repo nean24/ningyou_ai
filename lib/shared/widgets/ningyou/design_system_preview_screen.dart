@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/ningyou_colors.dart';
 import '../../../core/theme/ningyou_radius.dart';
 import '../../../core/theme/ningyou_spacing.dart';
@@ -21,6 +22,7 @@ class DesignSystemPreviewScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = NingyouColors.of(context);
+    final l10n = context.l10n;
 
     return Scaffold(
       backgroundColor: palette.background,
@@ -35,11 +37,10 @@ class DesignSystemPreviewScreen extends StatelessWidget {
                 children: [
                   const _PreviewHeader(),
                   const SizedBox(height: NingyouSpacing.xxl),
-                  const _SectionTitle(
+                  _SectionTitle(
                     eyebrow: '01 - Foundations',
-                    title: 'Design system preview',
-                    description:
-                        'Soft literary surfaces, one teal accent, custom brand widgets on a Material 3 base.',
+                    title: l10n.t('design.previewTitle'),
+                    description: l10n.t('design.previewDescription'),
                   ),
                   const SizedBox(height: NingyouSpacing.lg),
                   Wrap(
@@ -47,18 +48,24 @@ class DesignSystemPreviewScreen extends StatelessWidget {
                     runSpacing: NingyouSpacing.sm,
                     children: [
                       NingyouButton.primary(
-                        label: 'Bắt đầu trò chuyện',
+                        label: l10n.t('characters.startChat'),
                         icon: Icons.add_rounded,
                         onPressed: () {},
                       ),
                       NingyouButton.secondary(
-                        label: 'Save persona',
+                        label: l10n.t('design.savePersona'),
                         onPressed: () {},
                       ),
-                      NingyouButton.outline(label: 'Cancel', onPressed: () {}),
-                      NingyouButton.ghost(label: 'Skip', onPressed: () {}),
+                      NingyouButton.outline(
+                        label: l10n.t('common.cancel'),
+                        onPressed: () {},
+                      ),
+                      NingyouButton.ghost(
+                        label: l10n.t('common.skip'),
+                        onPressed: () {},
+                      ),
                       NingyouButton.danger(
-                        label: 'Delete chat',
+                        label: l10n.t('common.deleteChat'),
                         onPressed: () {},
                       ),
                     ],
@@ -69,7 +76,7 @@ class DesignSystemPreviewScreen extends StatelessWidget {
                   const _ChatPreview(),
                   const SizedBox(height: NingyouSpacing.xxl),
                   NingyouComposer(
-                    hintText: 'Viết tin nhắn cho Linh...',
+                    hintText: l10n.t('chat.composerHint'),
                     onSend: (_) {},
                   ),
                 ],
@@ -88,6 +95,7 @@ class _PreviewHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = NingyouColors.of(context);
+    final l10n = context.l10n;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -115,7 +123,7 @@ class _PreviewHeader extends StatelessWidget {
               Text('Ningyou', style: Theme.of(context).textTheme.displayMedium),
               const SizedBox(height: NingyouSpacing.xs),
               Text(
-                'A quiet kit for long conversations with personas you create.',
+                l10n.t('design.headerDescription'),
                 style: Theme.of(
                   context,
                 ).textTheme.bodyLarge?.copyWith(color: palette.textMuted),
@@ -125,7 +133,9 @@ class _PreviewHeader extends StatelessWidget {
         ),
         const SizedBox(width: NingyouSpacing.md),
         NingyouBadge(
-          label: palette.isDark ? 'Dark' : 'Light',
+          label: palette.isDark
+              ? context.l10n.t('settings.themeDark')
+              : context.l10n.t('settings.themeLight'),
           variant: NingyouBadgeVariant.accent,
         ),
       ],
@@ -242,18 +252,20 @@ class _InputsPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    final l10n = context.l10n;
+
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         NingyouTextField(
-          label: 'PERSONA NAME',
-          hintText: 'e.g. Hayashi the librarian',
+          label: l10n.t('design.personaNameLabel'),
+          hintText: l10n.t('design.personaNameHint'),
           prefixIcon: Icons.auto_stories_outlined,
         ),
-        SizedBox(height: NingyouSpacing.md),
+        const SizedBox(height: NingyouSpacing.md),
         NingyouTextArea(
-          label: 'PERSONA BACKSTORY',
-          hintText: 'Describe how this character speaks...',
+          label: l10n.t('design.personaBackstoryLabel'),
+          hintText: l10n.t('design.personaBackstoryHint'),
           minLines: 3,
           maxLines: 5,
         ),
@@ -267,18 +279,19 @@ class _PersonaPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
     return NingyouPersonaCard(
       initials: 'L',
-      name: 'Linh, the patient tutor',
+      name: l10n.t('design.samplePersonaName'),
       handle: '@linh.tutor',
-      bio:
-          'A patient literature tutor who waits for your draft and reads it twice.',
-      tag: 'Tutor',
-      chatCountLabel: '2.4k chats',
+      bio: l10n.t('design.samplePersonaBio'),
+      tag: l10n.t('design.samplePersonaTag'),
+      chatCountLabel: l10n.t('design.sampleChatCount'),
       gradient: NingyouAvatarGradient.green,
       action: NingyouIconButton(
         icon: Icons.favorite_border_rounded,
-        tooltip: 'Favorite',
+        tooltip: l10n.t('design.favorite'),
         onPressed: () {},
       ),
     );
@@ -290,35 +303,43 @@ class _StatusPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    final l10n = context.l10n;
+
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Wrap(
           spacing: NingyouSpacing.xs,
           runSpacing: NingyouSpacing.xs,
           children: [
-            NingyouBadge(label: 'New', variant: NingyouBadgeVariant.accent),
             NingyouBadge(
-              label: 'Online',
+              label: l10n.t('design.new'),
+              variant: NingyouBadgeVariant.accent,
+            ),
+            NingyouBadge(
+              label: l10n.t('design.online'),
               variant: NingyouBadgeVariant.success,
               showDot: true,
             ),
-            NingyouBadge(label: 'Beta', variant: NingyouBadgeVariant.warning),
+            NingyouBadge(
+              label: l10n.t('design.beta'),
+              variant: NingyouBadgeVariant.warning,
+            ),
           ],
         ),
-        SizedBox(height: NingyouSpacing.lg),
+        const SizedBox(height: NingyouSpacing.lg),
         Wrap(
           spacing: NingyouSpacing.xs,
           runSpacing: NingyouSpacing.xs,
           children: [
-            NingyouTag(label: 'All', active: true),
-            NingyouTag(label: 'Companion'),
-            NingyouTag(label: 'Tutor'),
-            NingyouTag(label: 'Writer'),
+            NingyouTag(label: l10n.t('design.all'), active: true),
+            NingyouTag(label: l10n.t('design.companion')),
+            NingyouTag(label: l10n.t('design.tutor')),
+            NingyouTag(label: l10n.t('design.writer')),
           ],
         ),
-        SizedBox(height: NingyouSpacing.lg),
-        Row(
+        const SizedBox(height: NingyouSpacing.lg),
+        const Row(
           children: [
             NingyouAvatar(
               initials: 'M',
@@ -340,8 +361,8 @@ class _StatusPreview extends StatelessWidget {
             ),
           ],
         ),
-        SizedBox(height: NingyouSpacing.lg),
-        NingyouSkeletonListItem(),
+        const SizedBox(height: NingyouSpacing.lg),
+        const NingyouSkeletonListItem(),
       ],
     );
   }
@@ -352,25 +373,29 @@ class _ChatPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const _PreviewCard(
+    final l10n = context.l10n;
+
+    return _PreviewCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _SectionTitle(
             eyebrow: '02 - Chat',
-            title: 'Bubbles & personas',
-            description:
-                'Asymmetric bubbles keep the direction of speech visible without loud chrome.',
+            title: l10n.t('design.chatTitle'),
+            description: l10n.t('design.chatDescription'),
           ),
-          SizedBox(height: NingyouSpacing.lg),
+          const SizedBox(height: NingyouSpacing.lg),
           NingyouChatBubble.ai(
-            meta: 'Linh - 14:02',
-            text: 'Chào bạn. Hôm nay bạn muốn ôn phần nào trước?',
+            meta: l10n.t('design.aiMeta'),
+            text: l10n.t('design.aiMessage'),
           ),
-          SizedBox(height: NingyouSpacing.sm),
-          NingyouChatBubble.user(meta: '14:02 - You', text: 'Văn trước nhé.'),
-          SizedBox(height: NingyouSpacing.sm),
-          Row(
+          const SizedBox(height: NingyouSpacing.sm),
+          NingyouChatBubble.user(
+            meta: l10n.t('design.userMeta'),
+            text: l10n.t('design.userMessage'),
+          ),
+          const SizedBox(height: NingyouSpacing.sm),
+          const Row(
             children: [
               NingyouAvatar(
                 initials: 'L',
@@ -381,10 +406,10 @@ class _ChatPreview extends StatelessWidget {
               NingyouTypingIndicator(),
             ],
           ),
-          SizedBox(height: NingyouSpacing.lg),
+          const SizedBox(height: NingyouSpacing.lg),
           NingyouToastCard(
-            title: 'Persona saved',
-            message: 'Linh is ready for the next conversation.',
+            title: l10n.t('design.toastTitle'),
+            message: l10n.t('design.toastMessage'),
             variant: NingyouBadgeVariant.success,
           ),
         ],

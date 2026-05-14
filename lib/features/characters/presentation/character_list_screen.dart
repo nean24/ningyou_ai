@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/ningyou_colors.dart';
 import '../../../core/theme/ningyou_radius.dart';
 import '../../../core/theme/ningyou_spacing.dart';
@@ -8,6 +9,7 @@ import '../../../core/theme/ningyou_text_styles.dart';
 import '../../../shared/widgets/ningyou/ningyou_avatar.dart';
 import '../../../shared/widgets/ningyou/ningyou_icon_button.dart';
 import '../../../shared/widgets/ningyou/ningyou_persona_card.dart';
+import '../../auth/presentation/auth_controller.dart';
 import '../domain/character.dart';
 import 'character_controller.dart';
 import 'character_create_screen.dart';
@@ -34,100 +36,217 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = NingyouColors.of(context);
-    final charactersAsync = ref.watch(characterListProvider);
+    final l10n = context.l10n;
+    final isAuthed = ref.watch(sessionTokenProvider) != null;
 
-    return Scaffold(
-      backgroundColor: palette.background,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _Header(palette: palette, onCreateTap: _openCreate),
-            _SearchBar(
-              controller: _searchController,
-              palette: palette,
-              onChanged: (q) => setState(() => _query = q.trim().toLowerCase()),
-            ),
-            Expanded(
-              child: charactersAsync.when(
-                loading: () => _LoadingSkeleton(palette: palette),
-                error: (e, _) => _ErrorState(
-                  palette: palette,
-                  message: e.toString(),
-                  onRetry: () => ref.read(characterListProvider.notifier).refresh(),
+    return DefaultTabController(
+      length: isAuthed ? 2 : 1,
+      child: Scaffold(
+        backgroundColor: palette.background,
+        body: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _Header(palette: palette, onCreateTap: _openCreate),
+              if (isAuthed)
+                TabBar(
+                  indicatorColor: palette.accent,
+                  labelColor: palette.accent,
+                  unselectedLabelColor: palette.textSubtle,
+                  dividerColor: palette.border,
+                  tabs: [
+                    Tab(text: l10n.t('characters.discoverTab')),
+                    Tab(text: l10n.t('characters.myTab')),
+                  ],
                 ),
-                data: (characters) {
-                  final filtered = _query.isEmpty
-                      ? characters
-                      : characters
-                          .where(
-                            (c) =>
-                                c.name.toLowerCase().contains(_query) ||
-                                c.description.toLowerCase().contains(_query),
-                          )
-                          .toList();
-
-                  if (filtered.isEmpty) {
-                    return _EmptyState(palette: palette, isSearch: _query.isNotEmpty);
-                  }
-
-                  return RefreshIndicator(
-                    color: palette.accent,
-                    backgroundColor: palette.surface,
-                    onRefresh: () =>
-                        ref.read(characterListProvider.notifier).refresh(),
-                    child: ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(
-                        NingyouSpacing.xl,
-                        NingyouSpacing.sm,
-                        NingyouSpacing.xl,
-                        NingyouSpacing.xxl,
-                      ),
-                      itemCount: filtered.length,
-                      separatorBuilder: (_, _) =>
-                          const SizedBox(height: NingyouSpacing.sm),
-                      itemBuilder: (context, i) {
-                        final character = filtered[i];
-                        return NingyouPersonaCard(
-                          key: ValueKey(character.id),
-                          initials: _initials(character.name),
-                          name: character.name,
-                          handle: _handle(character.name),
-                          bio: character.description,
-                          tag: character.traits.isNotEmpty
-                              ? character.traits.first
-                              : 'AI',
-                          chatCountLabel: '',
-                          imageUrl: character.avatarUrl,
-                          gradient: _gradient(character.id),
-                          onTap: () => _openDetail(context, character),
-                        );
-                      },
-                    ),
-                  );
-                },
+              if (!isAuthed) const SizedBox(height: NingyouSpacing.md),
+              _SearchBar(
+                controller: _searchController,
+                palette: palette,
+                onChanged: (q) =>
+                    setState(() => _query = q.trim().toLowerCase()),
               ),
-            ),
-          ],
+              Expanded(
+                child: isAuthed
+                    ? TabBarView(
+                        children: [
+                          _DiscoverTab(query: _query),
+                          _MyCharactersTab(query: _query),
+                        ],
+                      )
+                    : _DiscoverTab(query: _query),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  void _openDetail(BuildContext context, Character character) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => CharacterDetailScreen(character: character),
-      ),
-    );
-  }
-
   Future<void> _openCreate() async {
+    final isAuthed = ref.read(sessionTokenProvider) != null;
+    if (!isAuthed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.t('characters.loginToCreate'))),
+      );
+      return;
+    }
+
     await Navigator.of(context).push<Character>(
       MaterialPageRoute<Character>(
         builder: (_) => const CharacterCreateScreen(),
         fullscreenDialog: true,
       ),
+    );
+  }
+}
+
+class _DiscoverTab extends ConsumerWidget {
+  const _DiscoverTab({required this.query});
+  final String query;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = NingyouColors.of(context);
+    final l10n = context.l10n;
+    final charactersAsync = ref.watch(characterListProvider);
+
+    return charactersAsync.when(
+      loading: () => _LoadingSkeleton(palette: palette),
+      error: (e, _) => _ErrorState(
+        palette: palette,
+        message: e.toString(),
+        onRetry: () => ref.read(characterListProvider.notifier).refresh(),
+      ),
+      data: (characters) {
+        final filtered = query.isEmpty
+            ? characters
+            : characters
+                  .where(
+                    (c) =>
+                        c.name.toLowerCase().contains(query) ||
+                        c.description.toLowerCase().contains(query),
+                  )
+                  .toList();
+
+        if (filtered.isEmpty) {
+          return _EmptyState(palette: palette, isSearch: query.isNotEmpty);
+        }
+
+        return RefreshIndicator(
+          color: palette.accent,
+          backgroundColor: palette.surface,
+          onRefresh: () => ref.read(characterListProvider.notifier).refresh(),
+          child: ListView.separated(
+            padding: const EdgeInsets.fromLTRB(
+              NingyouSpacing.xl,
+              NingyouSpacing.sm,
+              NingyouSpacing.xl,
+              NingyouSpacing.xxl,
+            ),
+            itemCount: filtered.length,
+            separatorBuilder: (_, _) =>
+                const SizedBox(height: NingyouSpacing.sm),
+            itemBuilder: (context, i) {
+              final character = filtered[i];
+              return NingyouPersonaCard(
+                key: ValueKey(character.id),
+                initials: _initials(character.name),
+                name: character.name,
+                handle: _handle(character.name),
+                bio: character.description,
+                tag: character.traits.isNotEmpty
+                    ? character.traits.first
+                    : l10n.t('common.ai'),
+                chatCountLabel: '',
+                imageUrl: character.avatarUrl,
+                gradient: _gradient(character.id),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => CharacterDetailScreen(character: character),
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _MyCharactersTab extends ConsumerWidget {
+  const _MyCharactersTab({required this.query});
+  final String query;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = NingyouColors.of(context);
+    final l10n = context.l10n;
+    final charactersAsync = ref.watch(myCharactersProvider);
+
+    return charactersAsync.when(
+      loading: () => _LoadingSkeleton(palette: palette),
+      error: (e, _) => _ErrorState(
+        palette: palette,
+        message: e.toString(),
+        onRetry: () => ref.read(myCharactersProvider.notifier).refresh(),
+      ),
+      data: (characters) {
+        final filtered = query.isEmpty
+            ? characters
+            : characters
+                  .where(
+                    (c) =>
+                        c.name.toLowerCase().contains(query) ||
+                        c.description.toLowerCase().contains(query),
+                  )
+                  .toList();
+
+        if (filtered.isEmpty) {
+          return _EmptyState(palette: palette, isSearch: query.isNotEmpty);
+        }
+
+        return RefreshIndicator(
+          color: palette.accent,
+          backgroundColor: palette.surface,
+          onRefresh: () => ref.read(myCharactersProvider.notifier).refresh(),
+          child: ListView.separated(
+            padding: const EdgeInsets.fromLTRB(
+              NingyouSpacing.xl,
+              NingyouSpacing.sm,
+              NingyouSpacing.xl,
+              NingyouSpacing.xxl,
+            ),
+            itemCount: filtered.length,
+            separatorBuilder: (_, _) =>
+                const SizedBox(height: NingyouSpacing.sm),
+            itemBuilder: (context, i) {
+              final character = filtered[i];
+              return NingyouPersonaCard(
+                key: ValueKey(character.id),
+                initials: _initials(character.name),
+                name: character.name,
+                handle: _handle(character.name),
+                bio: character.description,
+                tag: character.traits.isNotEmpty
+                    ? character.traits.first
+                    : l10n.t('common.ai'),
+                chatCountLabel: character.visibility == 'private'
+                    ? l10n.t('common.private')
+                    : l10n.t('common.public'),
+                imageUrl: character.avatarUrl,
+                gradient: _gradient(character.id),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => CharacterDetailScreen(character: character),
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 }
@@ -142,6 +261,8 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         NingyouSpacing.xl,
@@ -157,24 +278,20 @@ class _Header extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Discover',
-                  style: Theme.of(context)
-                      .textTheme
-                      .headlineSmall
-                      ?.copyWith(color: palette.text),
+                  l10n.t('characters.title'),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.headlineSmall?.copyWith(color: palette.text),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Find your next conversation partner',
+                  l10n.t('characters.subtitle'),
                   style: NingyouTextStyles.monoLabel(palette.textSubtle),
                 ),
               ],
             ),
           ),
-          NingyouIconButton(
-            icon: Icons.add_rounded,
-            onPressed: onCreateTap,
-          ),
+          NingyouIconButton(icon: Icons.add_rounded, onPressed: onCreateTap),
         ],
       ),
     );
@@ -196,10 +313,12 @@ class _SearchBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         NingyouSpacing.xl,
-        0,
+        NingyouSpacing.md,
         NingyouSpacing.xl,
         NingyouSpacing.md,
       ),
@@ -219,17 +338,21 @@ class _SearchBar extends StatelessWidget {
                 child: TextField(
                   controller: controller,
                   onChanged: onChanged,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(color: palette.text),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: palette.text),
                   decoration: InputDecoration(
-                    hintText: 'Search characters...',
-                    hintStyle: Theme.of(context)
-                        .textTheme
-                        .bodyMedium
-                        ?.copyWith(color: palette.textSubtle),
+                    hintText: l10n.t('characters.searchHint'),
+                    hintStyle: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.copyWith(color: palette.textSubtle),
                     border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
+                    errorBorder: InputBorder.none,
+                    focusedErrorBorder: InputBorder.none,
+                    filled: false,
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(
                       vertical: NingyouSpacing.sm,
@@ -367,6 +490,8 @@ class _ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(NingyouSpacing.xl),
@@ -376,20 +501,18 @@ class _ErrorState extends StatelessWidget {
             Icon(Icons.cloud_off_rounded, size: 40, color: palette.textSubtle),
             const SizedBox(height: NingyouSpacing.md),
             Text(
-              'Could not load characters',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: palette.text),
+              l10n.t('characters.loadError'),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: palette.text),
             ),
             const SizedBox(height: NingyouSpacing.xs),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: palette.textMuted),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: palette.textMuted),
             ),
             const SizedBox(height: NingyouSpacing.lg),
             GestureDetector(
@@ -405,11 +528,10 @@ class _ErrorState extends StatelessWidget {
                     vertical: NingyouSpacing.xs,
                   ),
                   child: Text(
-                    'Try again',
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodyMedium
-                        ?.copyWith(color: palette.onAccent),
+                    l10n.t('common.tryAgain'),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.copyWith(color: palette.onAccent),
                   ),
                 ),
               ),
@@ -431,6 +553,8 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(NingyouSpacing.xl),
@@ -438,28 +562,26 @@ class _EmptyState extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              isSearch
-                  ? Icons.search_off_rounded
-                  : Icons.explore_off_rounded,
+              isSearch ? Icons.search_off_rounded : Icons.explore_off_rounded,
               size: 40,
               color: palette.textSubtle,
             ),
             const SizedBox(height: NingyouSpacing.md),
             Text(
-              isSearch ? 'No results found' : 'No characters yet',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: palette.text),
+              isSearch
+                  ? l10n.t('characters.noResults')
+                  : l10n.t('characters.empty'),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: palette.text),
             ),
             if (!isSearch) ...[
               const SizedBox(height: NingyouSpacing.xs),
               Text(
-                'Check back soon for new AI personas',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: palette.textMuted),
+                l10n.t('characters.emptyHint'),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: palette.textMuted),
               ),
             ],
           ],

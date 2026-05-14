@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/ningyou_colors.dart';
 import '../../../core/theme/ningyou_radius.dart';
 import '../../../core/theme/ningyou_spacing.dart';
@@ -19,11 +20,17 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = NingyouColors.of(context);
+    final l10n = context.l10n;
     final authState = ref.watch(authControllerProvider).valueOrNull;
 
     final (name, email, avatarUrl, isAnon) = switch (authState) {
-      AuthAuthenticated(:final user) => (user.name, user.email, user.avatarUrl, false),
-      AuthAnonymous() => ('Guest', null, null, true),
+      AuthAuthenticated(:final user) => (
+        user.name,
+        user.email,
+        user.avatarUrl,
+        false,
+      ),
+      AuthAnonymous() => (l10n.t('settings.guest'), null, null, true),
       _ => ('', null, null, false),
     };
 
@@ -41,48 +48,44 @@ class SettingsScreen extends ConsumerWidget {
             onEditTap: isAnon
                 ? null
                 : () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const ProfileEditScreen(),
-                      ),
+                    MaterialPageRoute<void>(
+                      builder: (_) => const ProfileEditScreen(),
                     ),
+                  ),
           ),
 
           const SizedBox(height: NingyouSpacing.lg),
 
           // ── Giao diện ─────────────────────────────────────────────────
-          const _SectionLabel('Giao diện'),
+          _SectionLabel(l10n.t('settings.interface')),
           const SizedBox(height: NingyouSpacing.xs),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: NingyouSpacing.xl),
-            child: _SettingsGroup(
-              children: [const _ThemeRow()],
-            ),
+            child: _SettingsGroup(children: [const _ThemeRow()]),
           ),
 
           const SizedBox(height: NingyouSpacing.lg),
 
           // ── Thông báo ─────────────────────────────────────────────────
-          const _SectionLabel('Thông báo'),
+          _SectionLabel(l10n.t('settings.notifications')),
           const SizedBox(height: NingyouSpacing.xs),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: NingyouSpacing.xl),
-            child: _SettingsGroup(
-              children: [const _NotificationsRow()],
-            ),
+            child: _SettingsGroup(children: [const _NotificationsRow()]),
           ),
 
           const SizedBox(height: NingyouSpacing.lg),
 
           // ── Về ứng dụng ───────────────────────────────────────────────
-          const _SectionLabel('Về ứng dụng'),
+          _SectionLabel(l10n.t('settings.aboutApp')),
           const SizedBox(height: NingyouSpacing.xs),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: NingyouSpacing.xl),
             child: _SettingsGroup(
               children: [
-                const _InfoRow(label: 'Phiên bản', value: '1.0.0'),
-                _InfoRow(label: 'Điều khoản sử dụng', onTap: () {}),
-                _InfoRow(label: 'Chính sách bảo mật', onTap: () {}),
+                _InfoRow(label: l10n.t('settings.version'), value: '1.0.0'),
+                _InfoRow(label: l10n.t('settings.terms'), onTap: () {}),
+                _InfoRow(label: l10n.t('settings.privacy'), onTap: () {}),
               ],
             ),
           ),
@@ -93,7 +96,7 @@ class SettingsScreen extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: NingyouSpacing.xl),
             child: NingyouButton.danger(
-              label: 'Đăng xuất',
+              label: l10n.t('settings.signOut'),
               size: NingyouButtonSize.lg,
               onPressed: () =>
                   ref.read(authControllerProvider.notifier).signOut(),
@@ -127,7 +130,9 @@ class _ProfileHero extends StatelessWidget {
   String get _initials {
     if (isAnon || name.isEmpty) return 'G';
     final parts = name.trim().split(' ');
-    if (parts.length >= 2) return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+    if (parts.length >= 2) {
+      return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+    }
     return parts.first[0].toUpperCase();
   }
 
@@ -160,73 +165,91 @@ class _ProfileHero extends StatelessWidget {
                 ),
               ),
             ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                NingyouSpacing.xl,
-                topPadding + NingyouSpacing.xxl,
-                NingyouSpacing.xl,
-                NingyouSpacing.xxl,
-              ),
-              child: Column(
-                children: [
-                  Stack(
-                    children: [
-                      NingyouAvatar(
-                        initials: _initials,
-                        imageUrl: avatarUrl,
-                        size: NingyouAvatarSize.xl,
-                        gradient: isAnon
-                            ? NingyouAvatarGradient.neutral
-                            : NingyouAvatarGradient.blue,
-                        showStatus: !isAnon,
-                      ),
-                      if (onEditTap != null)
-                        Positioned(
-                          right: 0,
-                          bottom: 0,
-                          child: Container(
-                            width: 24,
-                            height: 24,
-                            decoration: BoxDecoration(
-                              color: palette.surface,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: palette.border),
-                            ),
-                            child: Icon(
-                              Icons.edit_rounded,
-                              size: 12,
-                              color: palette.textMuted,
+            Align(
+              alignment: Alignment.topCenter,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  NingyouSpacing.xl,
+                  topPadding + NingyouSpacing.xxl,
+                  NingyouSpacing.xl,
+                  NingyouSpacing.xxl,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        NingyouAvatar(
+                          initials: _initials,
+                          imageUrl: avatarUrl,
+                          size: NingyouAvatarSize.xl,
+                          gradient: isAnon
+                              ? NingyouAvatarGradient.neutral
+                              : NingyouAvatarGradient.blue,
+                          showStatus: !isAnon,
+                        ),
+                        if (onEditTap != null)
+                          Positioned(
+                            right: 0,
+                            bottom: 0,
+                            child: Container(
+                              width: 24,
+                              height: 24,
+                              decoration: BoxDecoration(
+                                color: palette.surface,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: palette.border),
+                              ),
+                              child: Icon(
+                                Icons.edit_rounded,
+                                size: 12,
+                                color: palette.textMuted,
+                              ),
                             ),
                           ),
+                      ],
+                    ),
+                    const SizedBox(height: NingyouSpacing.md),
+                    SizedBox(
+                      width: double.infinity,
+                      child: Text(
+                        name.isEmpty ? '–' : name,
+                        style: textTheme.titleLarge?.copyWith(fontSize: 26),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    const SizedBox(height: NingyouSpacing.xs),
+                    if (email != null)
+                      SizedBox(
+                        width: double.infinity,
+                        child: Text(
+                          email!,
+                          style: NingyouTextStyles.monoLabel(
+                            palette.textSubtle,
+                          ).copyWith(fontSize: 11, letterSpacing: 0.3),
+                          textAlign: TextAlign.center,
                         ),
+                      ),
+                    if (isAnon) ...[
+                      const SizedBox(height: NingyouSpacing.sm),
+                      _GuestBadge(),
                     ],
-                  ),
-                  const SizedBox(height: NingyouSpacing.md),
-                  Text(
-                    name.isEmpty ? '–' : name,
-                    style: textTheme.titleLarge?.copyWith(fontSize: 26),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 5),
-                  if (email != null)
-                    Text(
-                      email!,
-                      style: NingyouTextStyles.monoLabel(
-                        palette.textSubtle,
-                      ).copyWith(fontSize: 11, letterSpacing: 0.3),
-                    ),
-                  if (isAnon) ...[
-                    const SizedBox(height: NingyouSpacing.sm),
-                    _GuestBadge(),
+                    if (onEditTap != null) ...[
+                      const SizedBox(height: NingyouSpacing.sm),
+                      SizedBox(
+                        width: double.infinity,
+                        child: Text(
+                          context.l10n.t('settings.tapEditProfile'),
+                          style: textTheme.bodySmall?.copyWith(
+                            color: palette.textSubtle,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
                   ],
-                  if (onEditTap != null) ...[
-                    const SizedBox(height: NingyouSpacing.sm),
-                    Text(
-                      'Chạm để chỉnh sửa hồ sơ',
-                      style: textTheme.bodySmall?.copyWith(color: palette.textSubtle),
-                    ),
-                  ],
-                ],
+                ),
               ),
             ),
           ],
@@ -252,8 +275,10 @@ class _GuestBadge extends StatelessWidget {
           vertical: 5,
         ),
         child: Text(
-          'GUEST MODE',
-          style: NingyouTextStyles.monoLabel(palette.textSubtle).copyWith(fontSize: 10),
+          context.l10n.t('settings.guestMode'),
+          style: NingyouTextStyles.monoLabel(
+            palette.textSubtle,
+          ).copyWith(fontSize: 10),
         ),
       ),
     );
@@ -326,21 +351,23 @@ class _ThemeRow extends ConsumerWidget {
 
     return _SettingsRow(
       icon: Icons.brightness_medium_rounded,
-      label: 'Giao diện',
+      label: context.l10n.t('settings.interface'),
       trailing: _SegmentedPicker(
-        options: const ['Hệ thống', 'Sáng', 'Tối'],
+        options: [
+          context.l10n.t('settings.themeSystem'),
+          context.l10n.t('settings.themeLight'),
+          context.l10n.t('settings.themeDark'),
+        ],
         selected: switch (current) {
           ThemeMode.light => 1,
           ThemeMode.dark => 2,
           _ => 0,
         },
-        onSelect: (i) => ref.read(themeModeProvider.notifier).set(
-              switch (i) {
-                1 => ThemeMode.light,
-                2 => ThemeMode.dark,
-                _ => ThemeMode.system,
-              },
-            ),
+        onSelect: (i) => ref.read(themeModeProvider.notifier).set(switch (i) {
+          1 => ThemeMode.light,
+          2 => ThemeMode.dark,
+          _ => ThemeMode.system,
+        }),
       ),
     );
   }
@@ -358,12 +385,13 @@ class _NotificationsRow extends ConsumerWidget {
 
     return _SettingsRow(
       icon: Icons.notifications_outlined,
-      label: 'Thông báo đẩy',
+      label: context.l10n.t('settings.pushNotifications'),
       trailing: Switch.adaptive(
         value: enabled,
         activeThumbColor: palette.onAccent,
         activeTrackColor: palette.accent,
-        onChanged: (_) => ref.read(notificationsEnabledProvider.notifier).toggle(),
+        onChanged: (_) =>
+            ref.read(notificationsEnabledProvider.notifier).toggle(),
       ),
     );
   }
@@ -386,14 +414,19 @@ class _InfoRow extends StatelessWidget {
       label: label,
       onTap: onTap,
       trailing: onTap != null
-          ? Icon(Icons.chevron_right_rounded, size: 20, color: palette.textSubtle)
+          ? Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
+              color: palette.textSubtle,
+            )
           : value != null
-              ? Text(
-                  value!,
-                  style: NingyouTextStyles.monoLabel(palette.textSubtle)
-                      .copyWith(fontSize: 11),
-                )
-              : null,
+          ? Text(
+              value!,
+              style: NingyouTextStyles.monoLabel(
+                palette.textSubtle,
+              ).copyWith(fontSize: 11),
+            )
+          : null,
     );
   }
 }
@@ -493,7 +526,10 @@ class _SegmentedPicker extends StatelessWidget {
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 120),
                 curve: Curves.easeOut,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
                   color: active ? palette.surface : Colors.transparent,
                   borderRadius: BorderRadius.circular(NingyouRadius.pill),

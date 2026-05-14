@@ -22,6 +22,17 @@ export const listPublic = query({
   },
 });
 
+export const listByCreator = query({
+  args: { creatorUserId: v.id("users") },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("characters")
+      .withIndex("by_creator", (q) => q.eq("creatorUserId", args.creatorUserId))
+      .order("desc")
+      .collect();
+  },
+});
+
 export const get = query({
   args: { characterId: v.id("characters") },
   handler: async (ctx, args) => {
@@ -36,10 +47,18 @@ export const getForAction = internalQuery({
   },
 });
 
+export const generateAvatarUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
 export const create = mutation({
   args: {
     name: v.string(),
     avatarUrl: v.optional(v.string()),
+    avatarStorageId: v.optional(v.id("_storage")),
     description: v.string(),
     greeting: v.optional(v.string()),
     systemPrompt: v.string(),
@@ -50,9 +69,14 @@ export const create = mutation({
   handler: async (ctx, args) => {
     const now = Date.now();
 
+    let finalAvatarUrl = args.avatarUrl;
+    if (args.avatarStorageId) {
+      finalAvatarUrl = (await ctx.storage.getUrl(args.avatarStorageId)) ?? undefined;
+    }
+
     return await ctx.db.insert("characters", {
       name: sanitizeMessageContent(args.name),
-      avatarUrl: sanitizeOptionalText(args.avatarUrl),
+      avatarUrl: sanitizeOptionalText(finalAvatarUrl),
       description: sanitizeMessageContent(args.description),
       greeting: sanitizeOptionalText(args.greeting),
       systemPrompt: sanitizeMessageContent(args.systemPrompt),

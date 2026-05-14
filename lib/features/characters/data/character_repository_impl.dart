@@ -16,6 +16,19 @@ class CharacterRepositoryImpl implements CharacterRepository {
   final CharacterLocalDataSource _local;
 
   @override
+  Future<String> getAvatarUploadUrl() async {
+    return _remote.getAvatarUploadUrl();
+  }
+
+  @override
+  Future<List<Character>> listByCreator({bool forceRefresh = false}) async {
+    // Only fetching from remote for My Characters for now
+    final remote = await _remote.listByCreator();
+    await _local.cacheAll(remote);
+    return remote.map(Character.fromRemote).toList();
+  }
+
+  @override
   Future<List<Character>> listPublic({bool forceRefresh = false}) async {
     if (!forceRefresh) {
       final cached = await _local.getAll();
@@ -56,6 +69,7 @@ class CharacterRepositoryImpl implements CharacterRepository {
     String? greeting,
     List<String> traits = const [],
     String visibility = 'public',
+    String? avatarStorageId,
   }) async {
     final raw = await _remote.create(
       name: name,
@@ -64,6 +78,7 @@ class CharacterRepositoryImpl implements CharacterRepository {
       greeting: greeting,
       traits: traits,
       visibility: visibility,
+      avatarStorageId: avatarStorageId,
     );
     final character = Character.fromRemote(raw);
     await _local.cache(raw);

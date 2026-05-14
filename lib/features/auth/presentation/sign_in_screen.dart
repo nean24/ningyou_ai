@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/ningyou_colors.dart';
 import '../../../core/theme/ningyou_radius.dart';
 import '../../../core/theme/ningyou_spacing.dart';
 import '../../../shared/widgets/ningyou/ningyou_button.dart';
+import '../../../shared/widgets/ningyou/ningyou_icon_button.dart';
 import '../../../shared/widgets/ningyou/ningyou_text_field.dart';
 import '../domain/auth_state.dart';
 import 'auth_controller.dart';
+
+enum _AuthEntryMode { landing, signIn, signUp }
 
 class SignInScreen extends ConsumerStatefulWidget {
   const SignInScreen({super.key});
@@ -17,12 +21,15 @@ class SignInScreen extends ConsumerStatefulWidget {
 }
 
 class _SignInScreenState extends ConsumerState<SignInScreen> {
-  bool _isSignUp = false;
+  _AuthEntryMode _mode = _AuthEntryMode.landing;
   bool _obscurePassword = true;
 
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _displayNameController = TextEditingController();
+
+  bool get _isSignUp => _mode == _AuthEntryMode.signUp;
+  bool get _isEmailMode => _mode != _AuthEntryMode.landing;
 
   @override
   void dispose() {
@@ -32,22 +39,40 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     super.dispose();
   }
 
+  void _openEmailMode(_AuthEntryMode mode) {
+    setState(() {
+      _mode = mode;
+      _clearForm();
+    });
+  }
+
+  void _backToLanding() {
+    setState(() {
+      _mode = _AuthEntryMode.landing;
+      _clearForm();
+    });
+  }
+
+  void _clearForm() {
+    _emailController.clear();
+    _passwordController.clear();
+    _displayNameController.clear();
+  }
+
   void _submit() {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
     final displayName = _displayNameController.text.trim();
+    final notifier = ref.read(authControllerProvider.notifier);
 
     if (_isSignUp) {
-      ref.read(authControllerProvider.notifier).signUpWithEmail(
-            email: email,
-            password: password,
-            displayName: displayName,
-          );
+      notifier.signUpWithEmail(
+        email: email,
+        password: password,
+        displayName: displayName,
+      );
     } else {
-      ref.read(authControllerProvider.notifier).signInWithEmail(
-            email: email,
-            password: password,
-          );
+      notifier.signInWithEmail(email: email, password: password);
     }
   }
 
@@ -55,6 +80,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   Widget build(BuildContext context) {
     final authAsync = ref.watch(authControllerProvider);
     final palette = NingyouColors.of(context);
+    final l10n = context.l10n;
     final textTheme = Theme.of(context).textTheme;
 
     final isLoading = authAsync.isLoading;
@@ -66,245 +92,309 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     return Scaffold(
       backgroundColor: palette.background,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: NingyouSpacing.xl),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: NingyouSpacing.xxxl),
-
-              // ── Logo ─────────────────────────────────────────────────────
-              _Logo(palette: palette),
-
-              const SizedBox(height: NingyouSpacing.xxl),
-
-              // ── Mode toggle ───────────────────────────────────────────────
-              _ModeToggle(
-                isSignUp: _isSignUp,
-                palette: palette,
-                onToggle: (v) => setState(() {
-                  _isSignUp = v;
-                  _emailController.clear();
-                  _passwordController.clear();
-                  _displayNameController.clear();
-                }),
-              ),
-
-              const SizedBox(height: NingyouSpacing.xl),
-
-              // ── Error banner ──────────────────────────────────────────────
-              if (errorMessage != null) ...[
-                _ErrorBanner(message: errorMessage, palette: palette),
-                const SizedBox(height: NingyouSpacing.md),
-              ],
-
-              // ── Display name (sign-up only) ───────────────────────────────
-              if (_isSignUp) ...[
-                NingyouTextField(
-                  label: 'TÊN HIỂN THỊ',
-                  hintText: 'Tên của bạn',
-                  controller: _displayNameController,
-                  prefixIcon: Icons.person_outline_rounded,
-                  textInputAction: TextInputAction.next,
-                  autofocus: true,
-                ),
-                const SizedBox(height: NingyouSpacing.md),
-              ],
-
-              // ── Email ─────────────────────────────────────────────────────
-              NingyouTextField(
-                label: 'EMAIL',
-                hintText: 'email@example.com',
-                controller: _emailController,
-                prefixIcon: Icons.mail_outline_rounded,
-                keyboardType: TextInputType.emailAddress,
-                textInputAction: TextInputAction.next,
-                autofocus: !_isSignUp,
-              ),
-
-              const SizedBox(height: NingyouSpacing.md),
-
-              // ── Password ──────────────────────────────────────────────────
-              NingyouTextField(
-                label: 'MẬT KHẨU',
-                hintText: _isSignUp ? 'Tối thiểu 8 ký tự' : '••••••••',
-                controller: _passwordController,
-                prefixIcon: Icons.lock_outline_rounded,
-                obscureText: _obscurePassword,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => isLoading ? null : _submit(),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscurePassword
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined,
-                    size: 18,
-                    color: palette.textSubtle,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: NingyouSpacing.xl,
+                      vertical: NingyouSpacing.xxl,
+                    ),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 420),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _Logo(palette: palette),
+                          const SizedBox(height: NingyouSpacing.xxl),
+                          if (errorMessage != null) ...[
+                            _ErrorBanner(
+                              message: errorMessage,
+                              palette: palette,
+                            ),
+                            const SizedBox(height: NingyouSpacing.md),
+                          ],
+                          if (_isEmailMode)
+                            _EmailForm(
+                              isSignUp: _isSignUp,
+                              isLoading: isLoading,
+                              palette: palette,
+                              emailController: _emailController,
+                              passwordController: _passwordController,
+                              displayNameController: _displayNameController,
+                              obscurePassword: _obscurePassword,
+                              onTogglePassword: () => setState(
+                                () => _obscurePassword = !_obscurePassword,
+                              ),
+                              onSubmit: _submit,
+                              onBack: _backToLanding,
+                              onSwitchMode: () => _openEmailMode(
+                                _isSignUp
+                                    ? _AuthEntryMode.signIn
+                                    : _AuthEntryMode.signUp,
+                              ),
+                            )
+                          else
+                            _LandingActions(
+                              isLoading: isLoading,
+                              palette: palette,
+                              onGooglePressed: isLoading
+                                  ? null
+                                  : () => ref
+                                        .read(authControllerProvider.notifier)
+                                        .signInWithGoogle(),
+                              onAnonymousPressed: isLoading
+                                  ? null
+                                  : () => ref
+                                        .read(authControllerProvider.notifier)
+                                        .signInAnonymously(),
+                              onSignUpPressed: () =>
+                                  _openEmailMode(_AuthEntryMode.signUp),
+                              onSignInPressed: () =>
+                                  _openEmailMode(_AuthEntryMode.signIn),
+                            ),
+                          const SizedBox(height: NingyouSpacing.xxl),
+                          Text(
+                            l10n.t('auth.terms'),
+                            textAlign: TextAlign.center,
+                            style: textTheme.bodySmall?.copyWith(
+                              color: palette.textSubtle,
+                              height: 1.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                  onPressed: () =>
-                      setState(() => _obscurePassword = !_obscurePassword),
                 ),
               ),
-
-              const SizedBox(height: NingyouSpacing.xl),
-
-              // ── Primary action ────────────────────────────────────────────
-              NingyouButton.primary(
-                label: isLoading
-                    ? ((_isSignUp) ? 'Đang đăng ký...' : 'Đang đăng nhập...')
-                    : (_isSignUp ? 'Đăng ký' : 'Đăng nhập'),
-                onPressed: isLoading ? null : _submit,
-                size: NingyouButtonSize.lg,
-              ),
-
-              const SizedBox(height: NingyouSpacing.lg),
-
-              // ── Divider ───────────────────────────────────────────────────
-              _Divider(palette: palette),
-
-              const SizedBox(height: NingyouSpacing.lg),
-
-              // ── Google Sign-In ────────────────────────────────────────────
-              _GoogleSignInButton(
-                isLoading: isLoading,
-                palette: palette,
-                onPressed: isLoading
-                    ? null
-                    : () => ref
-                        .read(authControllerProvider.notifier)
-                        .signInWithGoogle(),
-              ),
-
-              const SizedBox(height: NingyouSpacing.sm),
-
-              // ── Continue as guest ─────────────────────────────────────────
-              NingyouButton.ghost(
-                label: 'Tiếp tục ẩn danh',
-                onPressed: isLoading
-                    ? null
-                    : () => ref
-                        .read(authControllerProvider.notifier)
-                        .signInAnonymously(),
-              ),
-
-              const SizedBox(height: NingyouSpacing.xxl),
-
-              // ── Footer ────────────────────────────────────────────────────
-              Text(
-                'Bằng cách tiếp tục, bạn đồng ý với điều khoản sử dụng\nvà chính sách quyền riêng tư của Ningyou.',
-                textAlign: TextAlign.center,
-                style: textTheme.bodySmall?.copyWith(
-                  color: palette.textSubtle,
-                  height: 1.5,
-                ),
-              ),
-
-              const SizedBox(height: NingyouSpacing.lg),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
   }
 }
 
-// ── Mode Toggle ──────────────────────────────────────────────────────────────
-
-class _ModeToggle extends StatelessWidget {
-  const _ModeToggle({
-    required this.isSignUp,
+class _LandingActions extends StatelessWidget {
+  const _LandingActions({
+    required this.isLoading,
     required this.palette,
-    required this.onToggle,
+    required this.onSignUpPressed,
+    required this.onSignInPressed,
+    this.onGooglePressed,
+    this.onAnonymousPressed,
+  });
+
+  final bool isLoading;
+  final NingyouPalette palette;
+  final VoidCallback? onGooglePressed;
+  final VoidCallback? onAnonymousPressed;
+  final VoidCallback onSignUpPressed;
+  final VoidCallback onSignInPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _GoogleSignInButton(
+          isLoading: isLoading,
+          palette: palette,
+          onPressed: onGooglePressed,
+        ),
+        const SizedBox(height: NingyouSpacing.sm),
+        NingyouButton.secondary(
+          label: l10n.t('auth.anonymous'),
+          icon: Icons.person_outline_rounded,
+          onPressed: onAnonymousPressed,
+          size: NingyouButtonSize.lg,
+        ),
+        const SizedBox(height: NingyouSpacing.xl),
+        _PromptLink(
+          prompt: l10n.t('auth.noAccountPrompt'),
+          action: l10n.t('auth.signUpEmail'),
+          palette: palette,
+          onTap: onSignUpPressed,
+        ),
+        const SizedBox(height: NingyouSpacing.sm),
+        _PromptLink(
+          prompt: l10n.t('auth.hasEmailAccountPrompt'),
+          action: l10n.t('auth.signInEmail'),
+          palette: palette,
+          onTap: onSignInPressed,
+        ),
+      ],
+    );
+  }
+}
+
+class _EmailForm extends StatelessWidget {
+  const _EmailForm({
+    required this.isSignUp,
+    required this.isLoading,
+    required this.palette,
+    required this.emailController,
+    required this.passwordController,
+    required this.displayNameController,
+    required this.obscurePassword,
+    required this.onTogglePassword,
+    required this.onSubmit,
+    required this.onBack,
+    required this.onSwitchMode,
   });
 
   final bool isSignUp;
+  final bool isLoading;
   final NingyouPalette palette;
-  final ValueChanged<bool> onToggle;
+  final TextEditingController emailController;
+  final TextEditingController passwordController;
+  final TextEditingController displayNameController;
+  final bool obscurePassword;
+  final VoidCallback onTogglePassword;
+  final VoidCallback onSubmit;
+  final VoidCallback onBack;
+  final VoidCallback onSwitchMode;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            NingyouIconButton(
+              icon: Icons.arrow_back_rounded,
+              tooltip: l10n.t('common.back'),
+              onPressed: onBack,
+            ),
+            const SizedBox(width: NingyouSpacing.sm),
+            Expanded(
+              child: Text(
+                isSignUp
+                    ? l10n.t('auth.signUpTitle')
+                    : l10n.t('auth.signInTitle'),
+                style: textTheme.titleLarge?.copyWith(color: palette.text),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: NingyouSpacing.xl),
+        if (isSignUp) ...[
+          NingyouTextField(
+            label: l10n.t('auth.displayNameLabel'),
+            hintText: l10n.t('auth.displayNameHint'),
+            controller: displayNameController,
+            prefixIcon: Icons.person_outline_rounded,
+            textInputAction: TextInputAction.next,
+            autofocus: true,
+          ),
+          const SizedBox(height: NingyouSpacing.md),
+        ],
+        NingyouTextField(
+          label: l10n.t('auth.emailLabel'),
+          hintText: l10n.t('auth.emailHint'),
+          controller: emailController,
+          prefixIcon: Icons.mail_outline_rounded,
+          keyboardType: TextInputType.emailAddress,
+          textInputAction: TextInputAction.next,
+          autofocus: !isSignUp,
+        ),
+        const SizedBox(height: NingyouSpacing.md),
+        NingyouTextField(
+          label: l10n.t('auth.passwordLabel'),
+          hintText: isSignUp
+              ? l10n.t('auth.passwordMinHint')
+              : l10n.t('auth.passwordHint'),
+          controller: passwordController,
+          prefixIcon: Icons.lock_outline_rounded,
+          obscureText: obscurePassword,
+          textInputAction: TextInputAction.done,
+          onSubmitted: (_) {
+            if (!isLoading) onSubmit();
+          },
+          suffixIcon: IconButton(
+            icon: Icon(
+              obscurePassword
+                  ? Icons.visibility_off_outlined
+                  : Icons.visibility_outlined,
+              size: 18,
+              color: palette.textSubtle,
+            ),
+            onPressed: onTogglePassword,
+          ),
+        ),
+        const SizedBox(height: NingyouSpacing.xl),
+        NingyouButton.primary(
+          label: isLoading
+              ? (isSignUp ? l10n.t('auth.signingUp') : l10n.t('auth.signingIn'))
+              : (isSignUp ? l10n.t('auth.signUp') : l10n.t('auth.signIn')),
+          onPressed: isLoading ? null : onSubmit,
+          size: NingyouButtonSize.lg,
+        ),
+        const SizedBox(height: NingyouSpacing.lg),
+        _PromptLink(
+          prompt: isSignUp
+              ? l10n.t('auth.hasAccountShort')
+              : l10n.t('auth.noAccountShort'),
+          action: isSignUp ? l10n.t('auth.signIn') : l10n.t('auth.signUp'),
+          palette: palette,
+          onTap: onSwitchMode,
+        ),
+      ],
+    );
+  }
+}
+
+class _PromptLink extends StatelessWidget {
+  const _PromptLink({
+    required this.prompt,
+    required this.action,
+    required this.palette,
+    required this.onTap,
+  });
+
+  final String prompt;
+  final String action;
+  final NingyouPalette palette;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: palette.backgroundMuted,
-        borderRadius: BorderRadius.circular(NingyouRadius.pill),
-      ),
-      padding: const EdgeInsets.all(4),
-      child: Row(
-        children: [
-          _Tab(
-            label: 'Đăng nhập',
-            active: !isSignUp,
-            palette: palette,
-            textTheme: textTheme,
-            onTap: () => onToggle(false),
-          ),
-          _Tab(
-            label: 'Đăng ký',
-            active: isSignUp,
-            palette: palette,
-            textTheme: textTheme,
-            onTap: () => onToggle(true),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Tab extends StatelessWidget {
-  const _Tab({
-    required this.label,
-    required this.active,
-    required this.palette,
-    required this.textTheme,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool active;
-  final NingyouPalette palette;
-  final TextTheme textTheme;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
-          padding: const EdgeInsets.symmetric(vertical: NingyouSpacing.sm),
-          decoration: BoxDecoration(
-            color: active ? palette.surface : Colors.transparent,
-            borderRadius: BorderRadius.circular(NingyouRadius.pill),
-            boxShadow: active
-                ? [
-                    BoxShadow(
-                      color: palette.border.withValues(alpha: 0.6),
-                      blurRadius: 4,
-                      offset: const Offset(0, 1),
-                    ),
-                  ]
-                : null,
-          ),
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: NingyouSpacing.xs,
+      children: [
+        Text(
+          prompt,
+          style: textTheme.bodySmall?.copyWith(color: palette.textMuted),
+        ),
+        GestureDetector(
+          onTap: onTap,
           child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: textTheme.bodyMedium?.copyWith(
-              color: active ? palette.text : palette.textMuted,
-              fontWeight: active ? FontWeight.w600 : FontWeight.normal,
+            action,
+            style: textTheme.bodySmall?.copyWith(
+              color: palette.accent,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ),
-      ),
+      ],
     );
   }
 }
-
-// ── Logo ─────────────────────────────────────────────────────────────────────
 
 class _Logo extends StatelessWidget {
   const _Logo({required this.palette});
@@ -363,35 +453,6 @@ class _Logo extends StatelessWidget {
   }
 }
 
-// ── Divider ───────────────────────────────────────────────────────────────────
-
-class _Divider extends StatelessWidget {
-  const _Divider({required this.palette});
-
-  final NingyouPalette palette;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(child: Divider(color: palette.border, thickness: 1)),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: NingyouSpacing.sm),
-          child: Text(
-            'hoặc',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: palette.textSubtle,
-                ),
-          ),
-        ),
-        Expanded(child: Divider(color: palette.border, thickness: 1)),
-      ],
-    );
-  }
-}
-
-// ── Google Sign-In Button ─────────────────────────────────────────────────────
-
 class _GoogleSignInButton extends StatelessWidget {
   const _GoogleSignInButton({
     required this.palette,
@@ -405,6 +466,7 @@ class _GoogleSignInButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final textTheme = Theme.of(context).textTheme;
 
     return Material(
@@ -419,7 +481,7 @@ class _GoogleSignInButton extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: NingyouSpacing.lg,
-            vertical: NingyouSpacing.sm + 2,
+            vertical: NingyouSpacing.md,
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -437,7 +499,9 @@ class _GoogleSignInButton extends StatelessWidget {
                 _GoogleLogo(size: 20),
               const SizedBox(width: NingyouSpacing.sm),
               Text(
-                isLoading ? 'Đang đăng nhập...' : 'Đăng nhập với Google',
+                isLoading
+                    ? l10n.t('auth.signingIn')
+                    : l10n.t('auth.signInWithGoogle'),
                 style: textTheme.labelLarge?.copyWith(
                   color: palette.text,
                   fontWeight: FontWeight.w600,
@@ -451,8 +515,6 @@ class _GoogleSignInButton extends StatelessWidget {
   }
 }
 
-// ── Google Logo ───────────────────────────────────────────────────────────────
-
 class _GoogleLogo extends StatelessWidget {
   const _GoogleLogo({required this.size});
 
@@ -460,10 +522,7 @@ class _GoogleLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      size: Size(size, size),
-      painter: _GoogleLogoPainter(),
-    );
+    return CustomPaint(size: Size(size, size), painter: _GoogleLogoPainter());
   }
 }
 
@@ -475,9 +534,9 @@ class _GoogleLogoPainter extends CustomPainter {
     final r = size.width / 2;
 
     canvas.clipPath(
-        Path()..addOval(Rect.fromCircle(center: Offset(cx, cy), radius: r)));
-    canvas.drawCircle(
-        Offset(cx, cy), r, Paint()..color = Colors.white);
+      Path()..addOval(Rect.fromCircle(center: Offset(cx, cy), radius: r)),
+    );
+    canvas.drawCircle(Offset(cx, cy), r, Paint()..color = Colors.white);
 
     final stroke = Paint()
       ..style = PaintingStyle.stroke
@@ -486,23 +545,38 @@ class _GoogleLogoPainter extends CustomPainter {
 
     stroke.color = const Color(0xFFEA4335);
     canvas.drawArc(
-        Rect.fromCircle(center: Offset(cx, cy), radius: r * 0.6),
-        -2.4, 1.6, false, stroke);
+      Rect.fromCircle(center: Offset(cx, cy), radius: r * 0.6),
+      -2.4,
+      1.6,
+      false,
+      stroke,
+    );
     stroke.color = const Color(0xFFFBBC04);
     canvas.drawArc(
-        Rect.fromCircle(center: Offset(cx, cy), radius: r * 0.6),
-        -0.8, 1.3, false, stroke);
+      Rect.fromCircle(center: Offset(cx, cy), radius: r * 0.6),
+      -0.8,
+      1.3,
+      false,
+      stroke,
+    );
     stroke.color = const Color(0xFF34A853);
     canvas.drawArc(
-        Rect.fromCircle(center: Offset(cx, cy), radius: r * 0.6),
-        0.5, 1.3, false, stroke);
+      Rect.fromCircle(center: Offset(cx, cy), radius: r * 0.6),
+      0.5,
+      1.3,
+      false,
+      stroke,
+    );
     stroke.color = const Color(0xFF4285F4);
     canvas.drawArc(
-        Rect.fromCircle(center: Offset(cx, cy), radius: r * 0.6),
-        1.8, 1.4, false, stroke);
+      Rect.fromCircle(center: Offset(cx, cy), radius: r * 0.6),
+      1.8,
+      1.4,
+      false,
+      stroke,
+    );
 
-    canvas.drawCircle(
-        Offset(cx, cy), r * 0.35, Paint()..color = Colors.white);
+    canvas.drawCircle(Offset(cx, cy), r * 0.35, Paint()..color = Colors.white);
     canvas.drawRRect(
       RRect.fromRectAndRadius(
         Rect.fromLTWH(cx, cy - r * 0.12, r * 0.55, r * 0.24),
@@ -518,8 +592,6 @@ class _GoogleLogoPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-// ── Error Banner ──────────────────────────────────────────────────────────────
-
 class _ErrorBanner extends StatelessWidget {
   const _ErrorBanner({required this.message, required this.palette});
 
@@ -528,6 +600,8 @@ class _ErrorBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(
@@ -544,11 +618,10 @@ class _ErrorBanner extends StatelessWidget {
           const SizedBox(width: NingyouSpacing.xs),
           Expanded(
             child: Text(
-              _friendlyError(message),
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: palette.danger),
+              _friendlyError(message, l10n),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: palette.danger),
             ),
           ),
         ],
@@ -556,22 +629,22 @@ class _ErrorBanner extends StatelessWidget {
     );
   }
 
-  String _friendlyError(String raw) {
+  String _friendlyError(String raw, AppLocalizations l10n) {
     if (raw.contains('Email already registered')) {
-      return 'Email này đã được đăng ký. Vui lòng đăng nhập.';
+      return l10n.t('auth.errorEmailRegistered');
     }
     if (raw.contains('Invalid email or password')) {
-      return 'Email hoặc mật khẩu không đúng.';
+      return l10n.t('auth.errorInvalidCredentials');
     }
     if (raw.contains('Password must be at least')) {
-      return 'Mật khẩu phải có ít nhất 8 ký tự.';
+      return l10n.t('auth.errorPasswordLength');
     }
     if (raw.contains('cancelled') || raw.contains('cancel')) {
-      return 'Đăng nhập đã bị hủy.';
+      return l10n.t('auth.errorCancelled');
     }
     if (raw.contains('network') || raw.contains('SocketException')) {
-      return 'Không có kết nối mạng. Vui lòng thử lại.';
+      return l10n.t('auth.errorNetwork');
     }
-    return 'Đã xảy ra lỗi. Vui lòng thử lại.';
+    return l10n.t('auth.errorGeneric');
   }
 }

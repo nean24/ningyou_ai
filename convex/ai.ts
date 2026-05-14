@@ -1,16 +1,23 @@
 import { v } from "convex/values";
 
 import { action } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { generateGeminiText } from "./lib/gemini";
 import { buildGeminiPrompt } from "./lib/prompts";
+
+type AssistantReplyResult = {
+  messageId: Id<"messages">;
+  text: string;
+  model: string;
+};
 
 export const generateAssistantReply = action({
   args: {
     conversationId: v.id("conversations"),
     model: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<AssistantReplyResult> => {
     const conversation = await ctx.runQuery(
       internal.conversations.getForAction,
       { conversationId: args.conversationId },
@@ -50,7 +57,7 @@ export const generateAssistantReply = action({
         contents: prompt.contents,
       });
 
-      const messageId = await ctx.runMutation(
+      const messageId: Id<"messages"> = await ctx.runMutation(
         internal.messages.saveAssistantMessage,
         {
           conversationId: args.conversationId,

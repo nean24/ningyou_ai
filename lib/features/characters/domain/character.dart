@@ -44,9 +44,7 @@ class Character {
         description: row['description'] as String,
         greeting: row['greeting'] as String?,
         systemPrompt: row['system_prompt'] as String,
-        traits: List<String>.from(
-          jsonDecode(row['traits'] as String) as List<dynamic>,
-        ),
+        traits: _parseLocalTraits(row['traits'] as String),
         avatarUrl: row['avatar_url'] as String?,
         visibility: row['visibility'] as String,
         createdAt: row['created_at'] as int,
@@ -65,4 +63,21 @@ class Character {
         'createdAt': createdAt,
         'updatedAt': updatedAt,
       };
+}
+
+List<String> _parseLocalTraits(String value) {
+  try {
+    final decoded = jsonDecode(value);
+    if (decoded is List) {
+      return decoded.map((trait) => trait.toString()).toList();
+    }
+  } on FormatException {
+    return value
+        .split(',')
+        .map((trait) => trait.trim())
+        .where((trait) => trait.isNotEmpty)
+        .toList();
+  }
+
+  return const [];
 }

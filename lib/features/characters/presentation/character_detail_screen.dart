@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/ningyou_colors.dart';
 import '../../../core/theme/ningyou_radius.dart';
 import '../../../core/theme/ningyou_spacing.dart';
@@ -31,6 +32,7 @@ class _CharacterDetailScreenState extends ConsumerState<CharacterDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = NingyouColors.of(context);
+    final l10n = context.l10n;
     final gradient = _gradient(character.id);
 
     return Scaffold(
@@ -59,10 +61,9 @@ class _CharacterDetailScreenState extends ConsumerState<CharacterDetailScreen> {
                     const SizedBox(height: NingyouSpacing.lg),
                     Text(
                       character.name,
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleLarge
-                          ?.copyWith(color: palette.text),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.titleLarge?.copyWith(color: palette.text),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 4),
@@ -88,35 +89,33 @@ class _CharacterDetailScreenState extends ConsumerState<CharacterDetailScreen> {
                     ],
                     const SizedBox(height: NingyouSpacing.xxl),
                     _Section(
-                      label: 'About',
+                      label: l10n.t('characters.about'),
                       palette: palette,
                       child: Text(
                         character.description,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(color: palette.textMuted),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: palette.textMuted,
+                        ),
                       ),
                     ),
                     if (character.greeting != null &&
                         character.greeting!.isNotEmpty) ...[
                       const SizedBox(height: NingyouSpacing.xl),
                       _Section(
-                        label: 'Greeting',
+                        label: l10n.t('characters.greeting'),
                         palette: palette,
                         child: DecoratedBox(
                           decoration: BoxDecoration(
                             color: palette.aiBubble,
-                            borderRadius:
-                                BorderRadius.circular(NingyouRadius.lg),
+                            borderRadius: BorderRadius.circular(
+                              NingyouRadius.lg,
+                            ),
                           ),
                           child: Padding(
                             padding: const EdgeInsets.all(NingyouSpacing.md),
                             child: Text(
                               '"${character.greeting}"',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
+                              style: Theme.of(context).textTheme.bodyMedium
                                   ?.copyWith(
                                     color: palette.aiBubbleText,
                                     fontStyle: FontStyle.italic,
@@ -128,7 +127,9 @@ class _CharacterDetailScreenState extends ConsumerState<CharacterDetailScreen> {
                     ],
                     const SizedBox(height: NingyouSpacing.xxl),
                     NingyouButton.primary(
-                      label: _isCreating ? 'Starting...' : 'Start chat',
+                      label: _isCreating
+                          ? l10n.t('characters.starting')
+                          : l10n.t('characters.startChat'),
                       icon: Icons.chat_bubble_outline_rounded,
                       size: NingyouButtonSize.lg,
                       onPressed: _isCreating ? null : () => _startChat(context),
@@ -164,7 +165,7 @@ class _CharacterDetailScreenState extends ConsumerState<CharacterDetailScreen> {
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not start chat. Try again.')),
+          SnackBar(content: Text(context.l10n.t('characters.startChatError'))),
         );
       }
     } finally {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/ningyou_colors.dart';
 import '../../../core/theme/ningyou_radius.dart';
 import '../../../core/theme/ningyou_spacing.dart';
@@ -31,7 +32,8 @@ class ConversationListScreen extends ConsumerWidget {
                 loading: () => _LoadingSkeleton(palette: palette),
                 error: (e, _) => _ErrorState(
                   palette: palette,
-                  onRetry: () => ref.read(conversationListProvider.notifier).refresh(),
+                  onRetry: () =>
+                      ref.read(conversationListProvider.notifier).refresh(),
                 ),
                 data: (conversations) {
                   if (conversations.isEmpty) {
@@ -50,10 +52,8 @@ class ConversationListScreen extends ConsumerWidget {
                         NingyouSpacing.xxl,
                       ),
                       itemCount: conversations.length,
-                      separatorBuilder: (_, _) => Divider(
-                        height: 1,
-                        color: palette.border,
-                      ),
+                      separatorBuilder: (_, _) =>
+                          Divider(height: 1, color: palette.border),
                       itemBuilder: (context, i) => _ConversationTile(
                         conversation: conversations[i],
                         palette: palette,
@@ -75,7 +75,8 @@ class ConversationListScreen extends ConsumerWidget {
       MaterialPageRoute<void>(
         builder: (_) => ChatScreen(
           conversationId: conversation.id,
-          characterName: conversation.title ?? 'Chat',
+          characterName:
+              conversation.title ?? context.l10n.t('chat.defaultTitle'),
         ),
       ),
     );
@@ -91,6 +92,8 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         NingyouSpacing.xl,
@@ -102,15 +105,14 @@ class _Header extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Chats',
-            style: Theme.of(context)
-                .textTheme
-                .headlineSmall
-                ?.copyWith(color: palette.text),
+            l10n.t('conversations.title'),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(color: palette.text),
           ),
           const SizedBox(height: 4),
           Text(
-            'Your conversations',
+            l10n.t('conversations.subtitle'),
             style: NingyouTextStyles.monoLabel(palette.textSubtle),
           ),
         ],
@@ -134,7 +136,10 @@ class _ConversationTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final characterAsync = ref.watch(characterProvider(conversation.characterId));
+    final characterAsync = ref.watch(
+      characterProvider(conversation.characterId),
+    );
+    final l10n = context.l10n;
     final avatarUrl = characterAsync.valueOrNull?.avatarUrl;
     final initials = (conversation.title ?? 'C').isNotEmpty
         ? (conversation.title ?? 'C')[0].toUpperCase()
@@ -158,15 +163,14 @@ class _ConversationTile extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    conversation.title ?? 'Chat',
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodyLarge
-                        ?.copyWith(color: palette.text),
+                    conversation.title ?? l10n.t('chat.defaultTitle'),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyLarge?.copyWith(color: palette.text),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    _formatTime(conversation.lastMessageAt),
+                    _formatTime(conversation.lastMessageAt, l10n),
                     style: NingyouTextStyles.monoLabel(palette.textSubtle),
                   ),
                 ],
@@ -255,6 +259,8 @@ class _ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -262,21 +268,19 @@ class _ErrorState extends StatelessWidget {
           Icon(Icons.cloud_off_rounded, size: 36, color: palette.textSubtle),
           const SizedBox(height: NingyouSpacing.md),
           Text(
-            'Could not load chats',
-            style: Theme.of(context)
-                .textTheme
-                .bodyMedium
-                ?.copyWith(color: palette.textMuted),
+            l10n.t('conversations.loadError'),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: palette.textMuted),
           ),
           const SizedBox(height: NingyouSpacing.md),
           GestureDetector(
             onTap: onRetry,
             child: Text(
-              'Retry',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: palette.accent),
+              l10n.t('common.retry'),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: palette.accent),
             ),
           ),
         ],
@@ -292,6 +296,8 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(NingyouSpacing.xl),
@@ -305,19 +311,17 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: NingyouSpacing.md),
             Text(
-              'No conversations yet',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: palette.text),
+              l10n.t('conversations.emptyTitle'),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: palette.text),
             ),
             const SizedBox(height: NingyouSpacing.xs),
             Text(
-              'Discover a character and start chatting',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: palette.textMuted),
+              l10n.t('conversations.emptyHint'),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: palette.textMuted),
               textAlign: TextAlign.center,
             ),
           ],
@@ -335,13 +339,19 @@ NingyouAvatarGradient _gradient(String id) {
   return gradients[hash % gradients.length];
 }
 
-String _formatTime(int ms) {
+String _formatTime(int ms, AppLocalizations l10n) {
   final dt = DateTime.fromMillisecondsSinceEpoch(ms);
   final now = DateTime.now();
   final diff = now.difference(dt);
-  if (diff.inMinutes < 1) return 'Just now';
-  if (diff.inHours < 1) return '${diff.inMinutes}m ago';
-  if (diff.inDays < 1) return '${diff.inHours}h ago';
-  if (diff.inDays < 7) return '${diff.inDays}d ago';
+  if (diff.inMinutes < 1) return l10n.t('conversations.justNow');
+  if (diff.inHours < 1) {
+    return '${diff.inMinutes}${l10n.t('conversations.minutesAgoSuffix')}';
+  }
+  if (diff.inDays < 1) {
+    return '${diff.inHours}${l10n.t('conversations.hoursAgoSuffix')}';
+  }
+  if (diff.inDays < 7) {
+    return '${diff.inDays}${l10n.t('conversations.daysAgoSuffix')}';
+  }
   return '${dt.day}/${dt.month}/${dt.year}';
 }

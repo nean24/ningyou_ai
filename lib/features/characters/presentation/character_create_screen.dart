@@ -1,6 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:dio/dio.dart';
 
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/ningyou_colors.dart';
 import '../../../core/theme/ningyou_radius.dart';
 import '../../../core/theme/ningyou_spacing.dart';
@@ -28,8 +32,10 @@ class _CharacterCreateScreenState extends ConsumerState<CharacterCreateScreen> {
   final List<String> _traits = [];
   String _visibility = 'public';
   bool _isSubmitting = false;
+  File? _avatarFile;
+  final _imagePicker = ImagePicker();
 
-  final _nameError = ValueNotifier<String?>( null);
+  final _nameError = ValueNotifier<String?>(null);
   final _descError = ValueNotifier<String?>(null);
   final _promptError = ValueNotifier<String?>(null);
 
@@ -47,21 +53,22 @@ class _CharacterCreateScreenState extends ConsumerState<CharacterCreateScreen> {
   }
 
   bool _validate() {
+    final l10n = context.l10n;
     bool ok = true;
     if (_nameCtrl.text.trim().length < 2) {
-      _nameError.value = 'Tên phải có ít nhất 2 ký tự';
+      _nameError.value = l10n.t('characters.nameValidation');
       ok = false;
     } else {
       _nameError.value = null;
     }
     if (_descCtrl.text.trim().length < 10) {
-      _descError.value = 'Mô tả phải có ít nhất 10 ký tự';
+      _descError.value = l10n.t('characters.descriptionValidation');
       ok = false;
     } else {
       _descError.value = null;
     }
     if (_promptCtrl.text.trim().length < 20) {
-      _promptError.value = 'System prompt phải có ít nhất 20 ký tự';
+      _promptError.value = l10n.t('characters.systemPromptValidation');
       ok = false;
     } else {
       _promptError.value = null;
@@ -76,30 +83,68 @@ class _CharacterCreateScreenState extends ConsumerState<CharacterCreateScreen> {
     _traitCtrl.clear();
   }
 
+  Future<void> _pickAvatar() async {
+    final picked = await _imagePicker.pickImage(source: ImageSource.gallery);
+    if (picked != null) {
+      setState(() {
+        _avatarFile = File(picked.path);
+      });
+    }
+  }
+
   Future<void> _submit() async {
     if (!_validate() || _isSubmitting) return;
     setState(() => _isSubmitting = true);
 
     try {
-      final character = await ref
-          .read(characterListProvider.notifier)
-          .createCharacter(
-            name: _nameCtrl.text.trim(),
-            description: _descCtrl.text.trim(),
-            systemPrompt: _promptCtrl.text.trim(),
-            greeting: _greetingCtrl.text.trim().isEmpty
-                ? null
-                : _greetingCtrl.text.trim(),
-            traits: List.from(_traits),
-            visibility: _visibility,
+      final notifier = ref.read(characterListProvider.notifier);
+      String? storageId;
+
+      if (_avatarFile != null) {
+        final uploadUrl = await notifier.getAvatarUploadUrl();
+        if (uploadUrl != null) {
+          final dio = Dio();
+          final bytes = await _avatarFile!.readAsBytes();
+
+          final contentType = _avatarFile!.path.toLowerCase().endsWith('.png')
+              ? 'image/png'
+              : 'image/jpeg';
+
+          final uploadRes = await dio.post(
+            uploadUrl,
+            data: Stream.fromIterable([bytes]),
+            options: Options(
+              headers: {
+                Headers.contentLengthHeader: bytes.length,
+                Headers.contentTypeHeader: contentType,
+              },
+            ),
           );
+
+          if (uploadRes.statusCode == 200 && uploadRes.data != null) {
+            storageId = uploadRes.data['storageId'] as String?;
+          }
+        }
+      }
+
+      final character = await notifier.createCharacter(
+        name: _nameCtrl.text.trim(),
+        description: _descCtrl.text.trim(),
+        systemPrompt: _promptCtrl.text.trim(),
+        greeting: _greetingCtrl.text.trim().isEmpty
+            ? null
+            : _greetingCtrl.text.trim(),
+        traits: List.from(_traits),
+        visibility: _visibility,
+        avatarStorageId: storageId,
+      );
 
       if (!mounted) return;
 
       if (character != null) {
         Navigator.of(context).pop(character);
       } else {
-        _showError('Tạo nhân vật thất bại. Thử lại nhé.');
+        _showError(context.l10n.t('characters.createError'));
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -107,156 +152,240 @@ class _CharacterCreateScreenState extends ConsumerState<CharacterCreateScreen> {
   }
 
   void _showError(String msg) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override
   Widget build(BuildContext context) {
     final palette = NingyouColors.of(context);
+    final l10n = context.l10n;
 
     return Scaffold(
       backgroundColor: palette.background,
       body: SafeArea(
-        child: Column(
-          children: [
-            _AppBar(palette: palette),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(
-                  NingyouSpacing.xl,
-                  NingyouSpacing.lg,
-                  NingyouSpacing.xl,
-                  NingyouSpacing.xxxl,
-                ),
-                child: Column(
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0.0, end: 1.0),
+          duration: const Duration(milliseconds: 600),
+          curve: Curves.easeOutCubic,
+          builder: (context, value, child) {
+            return Opacity(
+              opacity: value.clamp(0.0, 1.0),
+              child: Transform.translate(
+                offset: Offset(0, 20 * (1 - value)),
+                child: child,
+              ),
+            );
+          },
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(
+              NingyouSpacing.xl,
+              NingyouSpacing.xl,
+              NingyouSpacing.xl,
+              NingyouSpacing.xxxl,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Magazine-style Header
+                Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Name
-                    ValueListenableBuilder(
-                      valueListenable: _nameError,
-                      builder: (_, err, _) => NingyouTextField(
-                        label: 'TÊN NHÂN VẬT',
-                        hintText: 'Ví dụ: Hana, Levi, Zero Two...',
-                        controller: _nameCtrl,
-                        errorText: err,
-                        textInputAction: TextInputAction.next,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            l10n.t('characters.createTitleTop'),
+                            style: Theme.of(context).textTheme.displayMedium
+                                ?.copyWith(
+                                  color: palette.textMuted,
+                                  height: 0.9,
+                                ),
+                          ),
+                          Text(
+                            l10n.t('characters.createTitleBottom'),
+                            style: Theme.of(context).textTheme.displayMedium
+                                ?.copyWith(
+                                  color: palette.text,
+                                  fontStyle: FontStyle.italic,
+                                  height: 0.9,
+                                ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: NingyouSpacing.xl),
-
-                    // Description
-                    ValueListenableBuilder(
-                      valueListenable: _descError,
-                      builder: (_, err, _) => NingyouTextArea(
-                        label: 'MÔ TẢ',
-                        hintText:
-                            'Giới thiệu ngắn về nhân vật — sẽ hiển thị trên card...',
-                        controller: _descCtrl,
-                        errorText: err,
-                        minLines: 3,
-                        maxLines: 5,
-                      ),
-                    ),
-                    const SizedBox(height: NingyouSpacing.xl),
-
-                    // System prompt
-                    ValueListenableBuilder(
-                      valueListenable: _promptError,
-                      builder: (_, err, _) => NingyouTextArea(
-                        label: 'SYSTEM PROMPT',
-                        hintText:
-                            'Hướng dẫn AI đóng vai nhân vật này. Mô tả tính cách, cách nói chuyện, phong cách trả lời...',
-                        controller: _promptCtrl,
-                        errorText: err,
-                        helperText: err == null
-                            ? 'AI sẽ dựa vào đây để trả lời — càng chi tiết càng tốt'
-                            : null,
-                        minLines: 5,
-                        maxLines: 12,
-                      ),
-                    ),
-                    const SizedBox(height: NingyouSpacing.xl),
-
-                    // Greeting
-                    NingyouTextArea(
-                      label: 'LỜI CHÀO MỞ ĐẦU (tuỳ chọn)',
-                      hintText: 'Tin nhắn đầu tiên nhân vật sẽ gửi...',
-                      controller: _greetingCtrl,
-                      minLines: 2,
-                      maxLines: 4,
-                    ),
-                    const SizedBox(height: NingyouSpacing.xl),
-
-                    // Traits
-                    _TraitInput(
-                      traits: _traits,
-                      controller: _traitCtrl,
-                      palette: palette,
-                      onAdd: _addTrait,
-                      onRemove: (t) => setState(() => _traits.remove(t)),
-                    ),
-                    const SizedBox(height: NingyouSpacing.xl),
-
-                    // Visibility
-                    _VisibilityPicker(
-                      value: _visibility,
-                      palette: palette,
-                      onChange: (v) => setState(() => _visibility = v),
-                    ),
-                    const SizedBox(height: NingyouSpacing.xxl),
-
-                    // Submit
-                    NingyouButton.primary(
-                      label: _isSubmitting ? 'Đang tạo...' : 'Tạo nhân vật',
-                      icon: Icons.auto_awesome_rounded,
-                      size: NingyouButtonSize.lg,
-                      onPressed: _isSubmitting ? null : _submit,
+                    NingyouIconButton(
+                      icon: Icons.close_rounded,
+                      onPressed: () => Navigator.of(context).pop(),
                     ),
                   ],
                 ),
-              ),
+                const SizedBox(height: NingyouSpacing.xxl),
+
+                // Avatar Picker
+                Center(
+                  child: GestureDetector(
+                    onTap: _pickAvatar,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      alignment: Alignment.bottomRight,
+                      children: [
+                        Container(
+                          width: 140,
+                          height: 140,
+                          decoration: BoxDecoration(
+                            color: palette.surface,
+                            borderRadius: BorderRadius.circular(
+                              NingyouRadius.xl,
+                            ),
+                            border: Border.all(color: palette.border),
+                            boxShadow: [
+                              BoxShadow(
+                                color: palette.accent.withValues(alpha: 0.05),
+                                blurRadius: 24,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                            image: _avatarFile != null
+                                ? DecorationImage(
+                                    image: FileImage(_avatarFile!),
+                                    fit: BoxFit.cover,
+                                  )
+                                : null,
+                          ),
+                          child: _avatarFile == null
+                              ? Icon(
+                                  Icons.add_photo_alternate_rounded,
+                                  size: 40,
+                                  color: palette.textSubtle,
+                                )
+                              : null,
+                        ),
+                        if (_avatarFile != null)
+                          Positioned(
+                            bottom: -8,
+                            right: -8,
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: palette.accent,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: palette.background,
+                                  width: 3,
+                                ),
+                              ),
+                              child: Icon(
+                                Icons.edit_rounded,
+                                size: 16,
+                                color: palette.onAccent,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Center(
+                  child: Text(
+                    l10n.t('characters.avatarOptional'),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: palette.textMuted),
+                  ),
+                ),
+                const SizedBox(height: NingyouSpacing.xxxl),
+
+                // Name
+                ValueListenableBuilder(
+                  valueListenable: _nameError,
+                  builder: (_, err, _) => NingyouTextField(
+                    label: l10n.t('characters.nameLabel'),
+                    hintText: l10n.t('characters.nameHint'),
+                    controller: _nameCtrl,
+                    errorText: err,
+                    textInputAction: TextInputAction.next,
+                  ),
+                ),
+                const SizedBox(height: NingyouSpacing.xl),
+
+                // Description
+                ValueListenableBuilder(
+                  valueListenable: _descError,
+                  builder: (_, err, _) => NingyouTextArea(
+                    label: l10n.t('characters.descriptionLabel'),
+                    hintText: l10n.t('characters.descriptionHintShort'),
+                    controller: _descCtrl,
+                    errorText: err,
+                    minLines: 2,
+                    maxLines: 4,
+                  ),
+                ),
+                const SizedBox(height: NingyouSpacing.xl),
+
+                // System prompt
+                ValueListenableBuilder(
+                  valueListenable: _promptError,
+                  builder: (_, err, _) => NingyouTextArea(
+                    label: l10n.t('characters.systemPromptLabel'),
+                    hintText: l10n.t('characters.systemPromptHintLong'),
+                    controller: _promptCtrl,
+                    errorText: err,
+                    helperText: err == null
+                        ? l10n.t('characters.systemPromptHelperShort')
+                        : null,
+                    minLines: 6,
+                    maxLines: 14,
+                  ),
+                ),
+                const SizedBox(height: NingyouSpacing.xl),
+
+                // Greeting
+                NingyouTextArea(
+                  label: l10n.t('characters.greetingLabel'),
+                  hintText: l10n.t('characters.greetingHint'),
+                  controller: _greetingCtrl,
+                  minLines: 2,
+                  maxLines: 4,
+                ),
+                const SizedBox(height: NingyouSpacing.xl),
+
+                // Traits
+                _TraitInput(
+                  traits: _traits,
+                  controller: _traitCtrl,
+                  palette: palette,
+                  onAdd: _addTrait,
+                  onRemove: (t) => setState(() => _traits.remove(t)),
+                ),
+                const SizedBox(height: NingyouSpacing.xl),
+
+                // Visibility
+                _VisibilityPicker(
+                  value: _visibility,
+                  palette: palette,
+                  onChange: (v) => setState(() => _visibility = v),
+                ),
+                const SizedBox(height: NingyouSpacing.xxl),
+
+                // Submit
+                SizedBox(
+                  width: double.infinity,
+                  child: NingyouButton.primary(
+                    label: _isSubmitting
+                        ? l10n.t('characters.creating')
+                        : l10n.t('characters.createAction'),
+                    icon: Icons.auto_awesome_rounded,
+                    size: NingyouButtonSize.lg,
+                    onPressed: _isSubmitting ? null : _submit,
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-      ),
-    );
-  }
-}
-
-// ── App bar ──────────────────────────────────────────────────────────────────
-
-class _AppBar extends StatelessWidget {
-  const _AppBar({required this.palette});
-
-  final NingyouPalette palette;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        NingyouSpacing.md,
-        NingyouSpacing.sm,
-        NingyouSpacing.xl,
-        NingyouSpacing.sm,
-      ),
-      child: Row(
-        children: [
-          NingyouIconButton(
-            icon: Icons.close_rounded,
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-          const SizedBox(width: NingyouSpacing.sm),
-          Expanded(
-            child: Text(
-              'Nhân vật mới',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(color: palette.text),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -281,13 +410,16 @@ class _TraitInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'TRAITS (tối đa 5)',
-          style: NingyouTextStyles.monoLabel(palette.textSubtle)
-              .copyWith(letterSpacing: 0.9),
+          l10n.t('characters.traitsTitle'),
+          style: NingyouTextStyles.monoLabel(
+            palette.textSubtle,
+          ).copyWith(letterSpacing: 0.9),
         ),
         const SizedBox(height: 8),
         if (traits.isNotEmpty) ...[
@@ -314,19 +446,27 @@ class _TraitInput extends StatelessWidget {
             onChanged: (v) {
               if (v.endsWith(',')) onAdd(v);
             },
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: palette.text),
             decoration: InputDecoration(
-              hintText: 'Thêm trait, nhấn Enter...',
-              hintStyle: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: palette.textSubtle),
+              hintText: l10n.t('characters.tagHint'),
+              hintStyle: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: palette.textSubtle),
+              filled: true,
+              fillColor: palette.surface,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(NingyouRadius.md),
-                borderSide: BorderSide(color: palette.border),
+                borderSide: BorderSide.none,
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(NingyouRadius.md),
-                borderSide: BorderSide(color: palette.border),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(NingyouRadius.md),
+                borderSide: BorderSide(color: palette.accent),
               ),
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: NingyouSpacing.md,
@@ -335,14 +475,6 @@ class _TraitInput extends StatelessWidget {
               isDense: true,
             ),
           ),
-        const SizedBox(height: 6),
-        Text(
-          'Ví dụ: Gentle, Stoic, Mysterious...',
-          style: Theme.of(context)
-              .textTheme
-              .bodySmall
-              ?.copyWith(color: palette.textMuted),
-        ),
       ],
     );
   }
@@ -361,34 +493,33 @@ class _TraitChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
+    return Container(
       decoration: BoxDecoration(
         color: palette.accentSoft,
         borderRadius: BorderRadius.circular(NingyouRadius.pill),
+        border: Border.all(color: palette.accent.withValues(alpha: 0.2)),
       ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 6, 6, 6),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: palette.accentText),
+      padding: const EdgeInsets.fromLTRB(14, 6, 8, 6),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: palette.accentText,
+              fontWeight: FontWeight.w500,
             ),
-            const SizedBox(width: 4),
-            GestureDetector(
-              onTap: onRemove,
-              child: Icon(
-                Icons.close_rounded,
-                size: 14,
-                color: palette.accentText,
-              ),
+          ),
+          const SizedBox(width: 4),
+          GestureDetector(
+            onTap: onRemove,
+            child: Icon(
+              Icons.close_rounded,
+              size: 16,
+              color: palette.accentText,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -409,19 +540,22 @@ class _VisibilityPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'HIỂN THỊ',
-          style: NingyouTextStyles.monoLabel(palette.textSubtle)
-              .copyWith(letterSpacing: 0.9),
+          l10n.t('characters.visibilityTitle').toUpperCase(),
+          style: NingyouTextStyles.monoLabel(
+            palette.textSubtle,
+          ).copyWith(letterSpacing: 0.9),
         ),
         const SizedBox(height: 8),
         Row(
           children: [
             _VisOption(
-              label: 'Công khai',
+              label: l10n.t('characters.visibilityPublic'),
               icon: Icons.public_rounded,
               selected: value == 'public',
               palette: palette,
@@ -429,7 +563,7 @@ class _VisibilityPicker extends StatelessWidget {
             ),
             const SizedBox(width: NingyouSpacing.sm),
             _VisOption(
-              label: 'Riêng tư',
+              label: l10n.t('characters.visibilityPrivate'),
               icon: Icons.lock_outline_rounded,
               selected: value == 'private',
               palette: palette,
@@ -463,35 +597,36 @@ class _VisOption extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          curve: Curves.easeOut,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
           padding: const EdgeInsets.symmetric(
             horizontal: NingyouSpacing.md,
-            vertical: NingyouSpacing.sm,
+            vertical: NingyouSpacing.md,
           ),
           decoration: BoxDecoration(
             color: selected ? palette.accentSoft : palette.surface,
-            borderRadius: BorderRadius.circular(NingyouRadius.md),
+            borderRadius: BorderRadius.circular(NingyouRadius.lg),
             border: Border.all(
-              color: selected ? palette.accent : palette.border,
+              color: selected
+                  ? palette.accent.withValues(alpha: 0.5)
+                  : palette.border,
+              width: selected ? 1.5 : 1,
             ),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          child: Column(
             children: [
               Icon(
                 icon,
-                size: 16,
+                size: 24,
                 color: selected ? palette.accent : palette.textSubtle,
               ),
-              const SizedBox(width: 6),
+              const SizedBox(height: 8),
               Text(
                 label,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: selected ? palette.accentText : palette.textMuted,
-                      fontWeight:
-                          selected ? FontWeight.w600 : FontWeight.normal,
-                    ),
+                  color: selected ? palette.accentText : palette.textMuted,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                ),
               ),
             ],
           ),

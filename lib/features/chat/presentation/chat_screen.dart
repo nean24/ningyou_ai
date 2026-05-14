@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/ningyou_colors.dart';
 import '../../../core/theme/ningyou_spacing.dart';
 import '../../../shared/widgets/ningyou/ningyou_avatar.dart';
@@ -72,8 +73,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             if (chatState.error != null)
               _ErrorBanner(
                 message: chatState.error!,
-                onDismiss: () =>
-                    ref.read(chatProvider(widget.conversationId).notifier).clearError(),
+                onDismiss: () => ref
+                    .read(chatProvider(widget.conversationId).notifier)
+                    .clearError(),
               ),
             Expanded(
               child: _MessageList(
@@ -84,8 +86,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ),
             ),
             NingyouComposer(
-              onSend: (text) =>
-                  ref.read(chatProvider(widget.conversationId).notifier).sendMessage(text),
+              onSend: (text) => ref
+                  .read(chatProvider(widget.conversationId).notifier)
+                  .sendMessage(text),
             ),
           ],
         ),
@@ -129,7 +132,9 @@ class _ChatAppBar extends StatelessWidget {
             ),
             const SizedBox(width: NingyouSpacing.xs),
             NingyouAvatar(
-              initials: characterName.isNotEmpty ? characterName[0].toUpperCase() : '?',
+              initials: characterName.isNotEmpty
+                  ? characterName[0].toUpperCase()
+                  : '?',
               imageUrl: avatarUrl,
               size: NingyouAvatarSize.sm,
               gradient: NingyouAvatarGradient.violet,
@@ -138,10 +143,9 @@ class _ChatAppBar extends StatelessWidget {
             Expanded(
               child: Text(
                 characterName,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(color: palette.text),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(color: palette.text),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -221,6 +225,8 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(NingyouSpacing.xl),
@@ -234,11 +240,10 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: NingyouSpacing.md),
             Text(
-              'Say hello to start the conversation',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: palette.textMuted),
+              l10n.t('chat.emptyGreeting'),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: palette.textMuted),
               textAlign: TextAlign.center,
             ),
           ],
@@ -259,6 +264,7 @@ class _ErrorBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = NingyouColors.of(context);
+    final l10n = context.l10n;
     return DecoratedBox(
       decoration: BoxDecoration(color: palette.dangerSoft),
       child: Padding(
@@ -270,11 +276,10 @@ class _ErrorBanner extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                'Message failed. Try again.',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: palette.danger),
+                l10n.t('chat.messageFailed'),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: palette.danger),
               ),
             ),
             GestureDetector(

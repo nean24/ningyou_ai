@@ -3,9 +3,21 @@ import 'character_remote_data_source.dart';
 
 class CharacterRemoteDataSourceImpl implements CharacterRemoteDataSource {
   const CharacterRemoteDataSourceImpl({required ConvexHttpClient client})
-      : _client = client;
+    : _client = client;
 
   final ConvexHttpClient _client;
+
+  @override
+  Future<String> getAvatarUploadUrl() async {
+    final res = await _client.post('/characters/avatar-upload-url');
+    return res['uploadUrl'] as String;
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> listByCreator() async {
+    final res = await _client.post('/characters/my-list');
+    return (res['characters'] as List<dynamic>).cast<Map<String, dynamic>>();
+  }
 
   @override
   Future<List<Map<String, dynamic>>> listPublic() async {
@@ -27,15 +39,22 @@ class CharacterRemoteDataSourceImpl implements CharacterRemoteDataSource {
     String? greeting,
     List<String> traits = const [],
     String visibility = 'public',
+    String? avatarStorageId,
   }) async {
-    final res = await _client.post('/characters/create', body: {
+    final body = <String, dynamic>{
       'name': name,
       'description': description,
       'systemPrompt': systemPrompt,
       if (greeting != null && greeting.isNotEmpty) 'greeting': greeting,
       'traits': traits,
       'visibility': visibility,
-    });
+    };
+
+    if (avatarStorageId != null) {
+      body['avatarStorageId'] = avatarStorageId;
+    }
+
+    final res = await _client.post('/characters/create', body: body);
     return res['character'] as Map<String, dynamic>;
   }
 }

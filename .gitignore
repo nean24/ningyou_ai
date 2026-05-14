@@ -53,3 +53,7 @@ app.*.map.json
 # Claude Code
 .claude/
 CLAUDE.md
+
+# AI agent instruction files
+AGENTS.md
+GEMINI.md

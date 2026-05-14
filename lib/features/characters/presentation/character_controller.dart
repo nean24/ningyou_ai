@@ -50,6 +50,14 @@ class CharacterListNotifier extends AsyncNotifier<List<Character>> {
     }
   }
 
+  Future<String?> getAvatarUploadUrl() async {
+    try {
+      return await ref.read(characterRepositoryProvider).getAvatarUploadUrl();
+    } catch (e) {
+      return null;
+    }
+  }
+
   Future<Character?> createCharacter({
     required String name,
     required String description,
@@ -57,6 +65,7 @@ class CharacterListNotifier extends AsyncNotifier<List<Character>> {
     String? greeting,
     List<String> traits = const [],
     String visibility = 'public',
+    String? avatarStorageId,
   }) async {
     try {
       final character = await ref.read(characterRepositoryProvider).createCharacter(
@@ -66,13 +75,51 @@ class CharacterListNotifier extends AsyncNotifier<List<Character>> {
             greeting: greeting,
             traits: traits,
             visibility: visibility,
+            avatarStorageId: avatarStorageId,
           );
-      // Prepend to existing list
-      final current = state.valueOrNull ?? [];
-      state = AsyncData([character, ...current]);
+      
+      // Update public list if character is public
+      if (visibility == 'public') {
+        final current = state.valueOrNull ?? [];
+        state = AsyncData([character, ...current]);
+      }
+      
+      // Also refresh My Characters list
+      ref.invalidate(myCharactersProvider);
+      
       return character;
     } catch (e) {
       return null;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// My Characters notifier
+// ---------------------------------------------------------------------------
+final myCharactersProvider =
+    AsyncNotifierProvider<MyCharactersNotifier, List<Character>>(
+  MyCharactersNotifier.new,
+);
+
+class MyCharactersNotifier extends AsyncNotifier<List<Character>> {
+  @override
+  Future<List<Character>> build() async {
+    final token = ref.watch(sessionTokenProvider);
+    if (token == null) return [];
+    
+    return ref.watch(characterRepositoryProvider).listByCreator();
+  }
+
+  Future<void> refresh() async {
+    state = const AsyncLoading();
+    try {
+      final characters = await ref
+          .read(characterRepositoryProvider)
+          .listByCreator(forceRefresh: true);
+      state = AsyncData(characters);
+    } catch (e, st) {
+      state = AsyncError(e, st);
     }
   }
 }

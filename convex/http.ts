@@ -415,6 +415,23 @@ http.route({
 });
 
 // ---------------------------------------------------------------------------
+// POST /characters/avatar-upload-url
+// ---------------------------------------------------------------------------
+http.route({
+  path: "/characters/avatar-upload-url",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const token = request.headers.get("Authorization")?.replace("Bearer ", "").trim();
+    if (!token) return json({ error: "Unauthorized" }, 401);
+    const user = await ctx.runQuery(internal.sessions.validate, { token });
+    if (!user) return json({ error: "Unauthorized" }, 401);
+
+    const uploadUrl = await ctx.runMutation(api.characters.generateAvatarUploadUrl, {});
+    return json({ uploadUrl });
+  }),
+});
+
+// ---------------------------------------------------------------------------
 // POST /characters/create  (auth required)
 // ---------------------------------------------------------------------------
 http.route({
@@ -435,6 +452,7 @@ http.route({
         greeting?: string;
         traits?: string[];
         visibility?: string;
+        avatarStorageId?: string;
       };
 
       if (!body.name?.trim() || !body.description?.trim() || !body.systemPrompt?.trim()) {
@@ -454,6 +472,8 @@ http.route({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         creatorUserId: user._id as any,
         visibility,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        avatarStorageId: body.avatarStorageId as any,
       });
 
       const character = await ctx.runQuery(api.characters.get, {
@@ -481,6 +501,31 @@ http.route({
       return json({ characters });
     } catch (error) {
       console.error("[GET /characters]", error);
+      return json({ error: "Internal server error" }, 500);
+    }
+  }),
+});
+
+// ---------------------------------------------------------------------------
+// POST /characters/my-list  (auth required)
+// ---------------------------------------------------------------------------
+http.route({
+  path: "/characters/my-list",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const token = request.headers.get("Authorization")?.replace("Bearer ", "").trim();
+    if (!token) return json({ error: "Unauthorized" }, 401);
+    const user = await ctx.runQuery(internal.sessions.validate, { token });
+    if (!user) return json({ error: "Unauthorized" }, 401);
+
+    try {
+      const characters = await ctx.runQuery(api.characters.listByCreator, {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        creatorUserId: user._id as any,
+      });
+      return json({ characters });
+    } catch (error) {
+      console.error("[POST /characters/my-list]", error);
       return json({ error: "Internal server error" }, 500);
     }
   }),

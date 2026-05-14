@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/theme/ningyou_colors.dart';
 import '../../../core/theme/ningyou_radius.dart';
 import '../../../core/theme/ningyou_spacing.dart';
@@ -53,9 +54,10 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   }
 
   Future<void> _save() async {
+    final l10n = context.l10n;
     final name = _nameController.text.trim();
     if (name.isEmpty) {
-      setState(() => _error = 'Tên không được để trống.');
+      setState(() => _error = l10n.t('profileEdit.nameRequired'));
       return;
     }
 
@@ -72,7 +74,9 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
         newAvatarUrl = await ds.uploadAvatar(_pickedImage!);
       }
 
-      final currentName = switch (ref.read(authControllerProvider).valueOrNull) {
+      final currentName = switch (ref
+          .read(authControllerProvider)
+          .valueOrNull) {
         AuthAuthenticated(:final user) => user.name,
         _ => '',
       };
@@ -81,14 +85,16 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
 
       if (nameChanged) await ds.updateDisplayName(name);
 
-      await ref.read(authControllerProvider.notifier).updateUserProfile(
+      await ref
+          .read(authControllerProvider.notifier)
+          .updateUserProfile(
             displayName: nameChanged ? name : null,
             avatarUrl: newAvatarUrl,
           );
 
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
-      setState(() => _error = 'Lưu thất bại. Vui lòng thử lại.');
+      setState(() => _error = l10n.t('profileEdit.saveError'));
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -97,6 +103,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = NingyouColors.of(context);
+    final l10n = context.l10n;
     final textTheme = Theme.of(context).textTheme;
     final authState = ref.watch(authControllerProvider).valueOrNull;
 
@@ -112,7 +119,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
       appBar: AppBar(
         backgroundColor: palette.background,
         elevation: 0,
-        title: Text('Chỉnh sửa hồ sơ', style: textTheme.titleMedium),
+        title: Text(l10n.t('profileEdit.title'), style: textTheme.titleMedium),
         leading: IconButton(
           icon: Icon(Icons.arrow_back_rounded, color: palette.text),
           onPressed: () => Navigator.of(context).pop(),
@@ -123,7 +130,9 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
             child: TextButton(
               onPressed: _isSaving ? null : _save,
               child: Text(
-                _isSaving ? 'Đang lưu...' : 'Lưu',
+                _isSaving
+                    ? l10n.t('profileEdit.saving')
+                    : l10n.t('common.save'),
                 style: textTheme.bodyMedium?.copyWith(
                   color: _isSaving ? palette.textMuted : palette.accent,
                   fontWeight: FontWeight.w600,
@@ -185,7 +194,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
             const SizedBox(height: NingyouSpacing.xs),
 
             Text(
-              'Chạm để thay đổi ảnh',
+              l10n.t('profileEdit.tapChangePhoto'),
               style: textTheme.bodySmall?.copyWith(color: palette.textSubtle),
             ),
 
@@ -210,7 +219,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
 
             // ── Display name ──────────────────────────────────────────────
             NingyouTextField(
-              label: 'TÊN HIỂN THỊ',
+              label: l10n.t('profileEdit.displayNameLabel'),
               controller: _nameController,
               prefixIcon: Icons.person_outline_rounded,
               textInputAction: TextInputAction.done,
@@ -223,7 +232,9 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
             SizedBox(
               width: double.infinity,
               child: NingyouButton.primary(
-                label: _isSaving ? 'Đang lưu...' : 'Lưu thay đổi',
+                label: _isSaving
+                    ? l10n.t('profileEdit.saving')
+                    : l10n.t('profileEdit.saveChanges'),
                 onPressed: _isSaving ? null : _save,
                 size: NingyouButtonSize.lg,
               ),
@@ -237,7 +248,9 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   String _initials(String name) {
     if (name.isEmpty) return '?';
     final parts = name.trim().split(' ');
-    if (parts.length >= 2) return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+    if (parts.length >= 2) {
+      return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+    }
     return parts.first[0].toUpperCase();
   }
 }
